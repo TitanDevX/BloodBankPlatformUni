@@ -1,0 +1,205 @@
+%% Blood Bank Platform - Graduation 1 master ERD
+%% Compact one-page view. README.md lists the expanded clinical and audit fields.
+erDiagram
+    direction LR
+
+    banks {
+        bigint id PK
+        string name
+        decimal latitude
+        decimal longitude
+        boolean active
+    }
+    hospitals {
+        bigint id PK
+        string name
+        decimal latitude
+        decimal longitude
+        boolean active
+    }
+    users {
+        bigint id PK
+        bigint bank_id FK "nullable"
+        bigint hospital_id FK "nullable"
+        string email UK
+        string password "hashed"
+        string role
+        boolean active
+    }
+    donors {
+        bigint id PK
+        string name
+        string email
+        string reported_abo "nullable"
+        string reported_rh "nullable"
+        string group_verification_status
+    }
+    donations {
+        bigint id PK
+        bigint donor_id FK
+        bigint bank_id FK
+        bigint collector_id FK "nullable until collection"
+        bigint assessed_by FK "nullable"
+        bigint release_actor_id FK "nullable"
+        string eligibility_outcome
+        string collection_status
+        string processing_status
+        string release_status
+        datetime collection_completed_at "nullable"
+        string confirmed_abo "nullable"
+        string confirmed_rh "nullable"
+    }
+    screening_results {
+        bigint id PK
+        bigint donation_id FK
+        bigint recorded_by FK
+        string test_name
+        string result
+        datetime recorded_at
+    }
+    donor_notifications {
+        bigint id PK
+        bigint donation_id FK
+        string rejection_event_id UK "UUID idempotency key"
+        string recipient_email
+        string delivery_status
+        datetime queued_at
+    }
+    components {
+        bigint id PK
+        bigint donation_id FK
+        bigint bank_id FK
+        bigint created_by FK
+        string type
+        datetime processed_at
+        datetime expires_at
+        bigint shelf_life_seconds_applied
+        string expiry_policy_version
+        json special_processing_attributes
+        string status
+    }
+    patients {
+        bigint id PK
+        bigint hospital_id FK
+        string medical_id "composite unique with hospital_id"
+        string name
+        date date_of_birth
+    }
+    hospital_requests {
+        bigint id PK
+        bigint hospital_id FK
+        bigint source_bank_id FK "nullable until allocation"
+        bigint patient_id FK
+        bigint created_by FK
+        string component_type
+        string recipient_abo
+        string recipient_rh
+        int units_requested
+        json special_requirements
+        string urgency
+        datetime required_by
+        string status
+    }
+    request_status_events {
+        bigint id PK
+        bigint request_id FK
+        bigint actor_id FK "nullable for system"
+        string from_status
+        string to_status
+        datetime occurred_at
+    }
+    reservations {
+        bigint id PK
+        bigint request_id FK
+        bigint component_id FK
+        bigint bank_id FK "must equal request source and component bank"
+        bigint active_component_id UK "nullable generated key"
+        bigint confirmed_by FK
+        string state
+        datetime reserved_at
+        datetime released_at "nullable"
+    }
+    issue_records {
+        bigint id PK
+        bigint request_id FK
+        bigint component_id FK,UK
+        bigint bank_id FK
+        bigint issued_by FK
+        datetime issued_at
+    }
+    disposal_records {
+        bigint id PK
+        bigint component_id FK,UK
+        bigint bank_id FK
+        bigint disposed_by FK
+        datetime disposed_at
+        string reason
+    }
+    audit_events {
+        bigint id PK
+        bigint actor_id FK "nullable for system"
+        string subject_type
+        bigint subject_id "polymorphic"
+        string action
+        datetime occurred_at
+        json details
+    }
+    forecast_runs {
+        bigint id PK
+        bigint generated_by FK
+        string component_type
+        string abo
+        string rh
+        string model_version
+        datetime generated_at
+    }
+    forecast_points {
+        bigint id PK
+        bigint run_id FK
+        date target_date "composite unique with run_id"
+        decimal predicted_units
+    }
+
+    %% Composite unique indexes are enforced in the companion Laravel migration.
+    %% patients(hospital_id, medical_id)
+    %% forecast_points(run_id, target_date)
+    %% reservations.active_component_id is unique and populated only while active.
+    %% Composite FKs bind each bank_id to its component/donation and assigned staff.
+    %% Triggers require active reservations to match the request current source bank.
+    %% Released/issued historical reservations retain their original bank during reassignment.
+    %% Issue/disposal exclusion is enforced by database triggers in the companion migration.
+
+    banks |o--o{ users : assigns
+    hospitals |o--o{ users : assigns
+    banks ||--o{ donations : owns
+    banks |o--o{ hospital_requests : sources
+    banks ||--o{ components : stores
+    banks ||--o{ reservations : allocates
+    banks ||--o{ issue_records : issues
+    banks ||--o{ disposal_records : disposes
+    donors ||--o{ donations : attempts
+    donations ||--o{ screening_results : has
+    donations ||--o{ donor_notifications : triggers
+    donations ||--o{ components : yields
+    users |o--o{ donations : collects
+    users |o--o{ donations : assesses
+    users |o--o{ donations : releases
+    users ||--o{ screening_results : records
+    users ||--o{ components : creates
+    hospitals ||--o{ patients : registers
+    hospitals ||--o{ hospital_requests : submits
+    patients ||--o{ hospital_requests : has
+    users ||--o{ hospital_requests : creates
+    hospital_requests ||--o{ request_status_events : tracks
+    users |o--o{ request_status_events : changes
+    hospital_requests ||--o{ reservations : reserves
+    components ||--o{ reservations : history
+    users ||--o{ reservations : confirms
+    hospital_requests ||--o{ issue_records : fulfills
+    components ||--o| issue_records : issued_as
+    users ||--o{ issue_records : issues
+    components ||--o| disposal_records : disposed_as
+    users ||--o{ disposal_records : disposes
+    users ||--o{ forecast_runs : generates
+    forecast_runs ||--|{ forecast_points : contains
+    users |o--o{ audit_events : records
