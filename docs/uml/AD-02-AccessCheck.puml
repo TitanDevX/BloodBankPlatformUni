@@ -1,0 +1,28 @@
+@startuml AccessCheck_Activity
+start
+:User Requests Protected Route;
+if (Is Bearer Token Present?) then (yes)
+  :Validate Token Signature;
+  if (Is Token Valid & Unexpired?) then (yes)
+    :Fetch User Record;
+    if (Is User Active?) then (yes)
+      if (Does Role Match Allowed Roles?) then (yes)
+        :Grant Access to Route / Resource;
+        stop
+      else (no)
+        :Return 403 Forbidden Error;
+        stop
+      endif
+    else (no)
+      :Return 403 Account Inactive Error;
+      stop
+    endif
+  else (no)
+    :Return 401 Unauthorized Error;
+    stop
+  endif
+else (no)
+  :Redirect to /login;
+  stop
+endif
+@enduml
