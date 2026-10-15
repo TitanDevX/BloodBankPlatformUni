@@ -1,30 +1,33 @@
-@startuml
+@startuml Login_Sequence
 autonumber
-
-actor "User" as U
+actor "User" as User
+participant "Client (React)" as Client
 participant "AuthController" as AuthCtrl
-participant "AuthService" as AuthSvc
+participant "AuthService" as AuthService
 database "Database" as DB
 
-U -> AuthCtrl: Login request (credentials)
+User -> Client : Submit Credentials (email, password)
+Client -> AuthCtrl : POST /api/login
 activate AuthCtrl
 
-AuthCtrl -> AuthSvc: Authenticate user
-activate AuthSvc
+AuthCtrl -> AuthService : attemptLogin(credentials)
+activate AuthService
 
-AuthSvc -> DB: Fetch user record
+AuthService -> DB : Query User by Email
 activate DB
-DB --> AuthSvc: User details & hashed password
+DB --> AuthService : Return User Record (password_hash, active, scope)
 deactivate DB
 
-alt Valid Credentials
-    AuthSvc --> AuthCtrl: Token & User Profile
-    AuthCtrl --> U: 200 OK (Auth Token)
-else Invalid Credentials
-    AuthSvc --> AuthCtrl: Authentication Failed
-    AuthCtrl --> U: 401 Unauthorized
+alt Account Inactive or Invalid Credentials
+    AuthService --> AuthCtrl : Throw ValidationException
+    AuthCtrl --> Client : 401 / 403 Error Response
+    Client --> User : Show Error Message
+else Valid Credentials & Active Account
+    AuthService -> AuthService : Generate Sanctum Token
+    AuthService --> AuthCtrl : Return Auth Payload (Token & User Scope)
+    deactivate AuthService
+    AuthCtrl --> Client : 200 OK (Token + User Object)
+    deactivate AuthCtrl
+    Client --> User : Redirect to Authorized Dashboard
 end
-
-deactivate AuthSvc
-deactivate AuthCtrl
 @enduml
