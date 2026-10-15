@@ -1,0 +1,26 @@
+@startuml IdentityManagement_UseCase
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Administrator" as Admin
+actor "Bank Staff" as BankStaff
+actor "Laboratory Staff" as LabStaff
+actor "Hospital Staff" as HospitalStaff
+
+rectangle "Syrian Blood Bank Platform - Identity System" {
+    usecase "UC-01: Authenticate User" as UC_Auth
+    usecase "UC-02: Manage User Accounts" as UC_Manage
+    usecase "UC-03: Assign Roles & Scope" as UC_Assign
+    usecase "UC-04: View Audit Logs" as UC_Audit
+}
+
+Admin --> UC_Manage
+Admin --> UC_Assign
+Admin --> UC_Audit
+
+BankStaff --> UC_Auth
+LabStaff --> UC_Auth
+HospitalStaff --> UC_Auth
+
+UC_Manage .> UC_Assign : <<include>>
+@enduml
