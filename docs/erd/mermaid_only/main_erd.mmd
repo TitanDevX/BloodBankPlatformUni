@@ -17,13 +17,18 @@ erDiagram
         decimal longitude
         boolean active
     }
+    roles {
+        bigint id PK
+        string code UK
+        string scope "system bank or hospital"
+    }
     users {
         bigint id PK
+        bigint role_id FK
         bigint bank_id FK "nullable"
         bigint hospital_id FK "nullable"
         string email UK
         string password "hashed"
-        string role
         boolean active
     }
     donors {
@@ -146,10 +151,12 @@ erDiagram
     }
     forecast_runs {
         bigint id PK
+        bigint bank_id FK
         bigint generated_by FK
         string component_type
         string abo
         string rh
+        string data_source
         string model_version
         datetime generated_at
     }
@@ -168,7 +175,13 @@ erDiagram
     %% Triggers require active reservations to match the request current source bank.
     %% Released/issued historical reservations retain their original bank during reassignment.
     %% Issue/disposal exclusion is enforced by database triggers in the companion migration.
+    %% Seeded role codes: administrator, bank_admin, bank_donor_collection,
+    %% bank_inventory, bank_fulfillment, laboratory_testing,
+    %% laboratory_release, hospital_requester.
+    %% bank_admin has one bank_id, no hospital_id, and access only to that bank's forecasts.
+    %% ForecastRun.bank_id scopes each run; ForecastPoint inherits its bank via run_id.
 
+    roles ||--o{ users : assigns
     banks |o--o{ users : assigns
     hospitals |o--o{ users : assigns
     banks ||--o{ donations : owns
@@ -177,6 +190,7 @@ erDiagram
     banks ||--o{ reservations : allocates
     banks ||--o{ issue_records : issues
     banks ||--o{ disposal_records : disposes
+    banks ||--o{ forecast_runs : forecasts
     donors ||--o{ donations : attempts
     donations ||--o{ screening_results : has
     donations ||--o{ donor_notifications : triggers
