@@ -1,0 +1,30 @@
+@startuml
+autonumber
+
+actor "User" as U
+participant "AuthController" as AuthCtrl
+participant "AuthService" as AuthSvc
+database "Database" as DB
+
+U -> AuthCtrl: Login request (credentials)
+activate AuthCtrl
+
+AuthCtrl -> AuthSvc: Authenticate user
+activate AuthSvc
+
+AuthSvc -> DB: Fetch user record
+activate DB
+DB --> AuthSvc: User details & hashed password
+deactivate DB
+
+alt Valid Credentials
+    AuthSvc --> AuthCtrl: Token & User Profile
+    AuthCtrl --> U: 200 OK (Auth Token)
+else Invalid Credentials
+    AuthSvc --> AuthCtrl: Authentication Failed
+    AuthCtrl --> U: 401 Unauthorized
+end
+
+deactivate AuthSvc
+deactivate AuthCtrl
+@enduml

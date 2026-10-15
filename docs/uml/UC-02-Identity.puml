@@ -1,0 +1,19 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor "System User" as User
+actor "Administrator" as Admin
+
+rectangle "FR-02: Authentication & Access" {
+    usecase "Log In" as UC_Login
+    usecase "Log Out" as UC_Logout
+    usecase "Access Permitted Operation" as UC_Access
+}
+
+User --> UC_Login
+User --> UC_Logout
+User --> UC_Access
+
+Admin --> UC_Access
+@enduml

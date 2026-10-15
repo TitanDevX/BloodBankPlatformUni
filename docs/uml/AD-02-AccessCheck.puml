@@ -1,0 +1,14 @@
+@startuml
+start
+:User attempts action;
+if (Is Authenticated?) then (yes)
+  if (Has Required Role?) then (yes)
+    :Allow Operation;
+  else (no)
+    :Return 403 Forbidden;
+  endif
+else (no)
+  :Return 401 Unauthorized;
+endif
+stop
+@enduml
