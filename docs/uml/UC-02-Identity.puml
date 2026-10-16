@@ -3,6 +3,7 @@ left to right direction
 skinparam packageStyle rectangle
 
 actor "Administrator" as Admin
+actor "Bank Administrator" as BankAdmin
 actor "Bank Staff" as BankStaff
 actor "Laboratory Staff" as LabStaff
 actor "Hospital Staff" as HospitalStaff
@@ -11,16 +12,31 @@ rectangle "Syrian Blood Bank Platform - Identity System" {
     usecase "UC-01: Authenticate User" as UC_Auth
     usecase "UC-02: Manage User Accounts" as UC_Manage
     usecase "UC-03: Assign Roles & Scope" as UC_Assign
+    usecase "Assign bank staff role\nwithin own bank" as UC_BankAssign
+    usecase "Check same bank" as UC_SameBank
+    usecase "Check allowed role" as UC_AllowedRole
     usecase "UC-04: View Audit Logs" as UC_Audit
 }
 
 Admin --> UC_Manage
 Admin --> UC_Assign
 Admin --> UC_Audit
+BankAdmin --> UC_Auth
+BankAdmin --> UC_BankAssign
 
 BankStaff --> UC_Auth
 LabStaff --> UC_Auth
 HospitalStaff --> UC_Auth
 
 UC_Manage .> UC_Assign : <<include>>
+UC_BankAssign .> UC_SameBank : <<include>>
+UC_BankAssign .> UC_AllowedRole : <<include>>
+
+note right of UC_AllowedRole
+  bank_donor_collection
+  bank_inventory
+  bank_fulfillment
+  No bank_admin, laboratory,
+  hospital or system roles.
+end note
 @enduml

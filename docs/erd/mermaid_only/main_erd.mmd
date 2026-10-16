@@ -179,6 +179,9 @@ erDiagram
     %% bank_inventory, bank_fulfillment, laboratory_testing,
     %% laboratory_release, hospital_requester.
     %% bank_admin has one bank_id, no hospital_id, and access only to that bank's forecasts.
+    %% bank_admin may assign bank_donor_collection, bank_inventory or bank_fulfillment
+    %% only to a different user with the same bank_id; other role/organization edits
+    %% remain administrator-only. Enforce this through backend authorization policy.
     %% ForecastRun.bank_id scopes each run; ForecastPoint inherits its bank via run_id.
 
     roles ||--o{ users : assigns
