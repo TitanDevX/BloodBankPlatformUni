@@ -1,0 +1,22 @@
+{
+    "name": "bloodbankplatform/recommendations",
+    "description": "Exact-match source filtering and nearest-bank selection",
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\Recommendations\\": "app/",
+            "Modules\\Recommendations\\Database\\Factories\\": "database/factories/",
+            "Modules\\Recommendations\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\Recommendations\\Tests\\": "tests/"
+        }
+    }
+}

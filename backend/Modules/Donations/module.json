@@ -1,0 +1,11 @@
+{
+    "name": "Donations",
+    "alias": "donations",
+    "description": "Eligibility, collection and processing records",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Donations\\Providers\\DonationsServiceProvider"
+    ],
+    "files": []
+}

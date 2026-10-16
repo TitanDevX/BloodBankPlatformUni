@@ -1,0 +1,22 @@
+{
+    "name": "bloodbankplatform/identity",
+    "description": "Staff users, authentication and authorization",
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\Identity\\": "app/",
+            "Modules\\Identity\\Database\\Factories\\": "database/factories/",
+            "Modules\\Identity\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\Identity\\Tests\\": "tests/"
+        }
+    }
+}

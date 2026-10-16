@@ -1,0 +1,11 @@
+{
+    "name": "Forecasting",
+    "alias": "forecasting",
+    "description": "Forecast service integration and saved predictions",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Forecasting\\Providers\\ForecastingServiceProvider"
+    ],
+    "files": []
+}

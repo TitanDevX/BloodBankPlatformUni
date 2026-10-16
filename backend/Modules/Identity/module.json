@@ -1,0 +1,11 @@
+{
+    "name": "Identity",
+    "alias": "identity",
+    "description": "Staff users, authentication and authorization",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Identity\\Providers\\IdentityServiceProvider"
+    ],
+    "files": []
+}
