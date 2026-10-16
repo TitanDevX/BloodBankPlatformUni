@@ -1,5 +1,5 @@
 %% Blood Bank Platform - Graduation 1 master ERD
-%% Compact one-page view. README.md lists the expanded clinical and audit fields.
+%% Compact one-page view. Expanded clinical and audit fields are in the requirements document.
 erDiagram
     direction LR
 
@@ -45,14 +45,10 @@ erDiagram
         bigint bank_id FK
         bigint collector_id FK "nullable until collection"
         bigint assessed_by FK "nullable"
-        bigint release_actor_id FK "nullable"
         string eligibility_outcome
         string collection_status
         string processing_status
-        string release_status
         datetime collection_completed_at "nullable"
-        string confirmed_abo "nullable"
-        string confirmed_rh "nullable"
     }
     screening_results {
         bigint id PK
@@ -61,6 +57,16 @@ erDiagram
         string test_name
         string result
         datetime recorded_at
+    }
+    screening_decisions {
+        bigint id PK
+        bigint donation_id FK,UK
+        bigint decided_by FK
+        string status "approved or rejected"
+        string confirmed_abo "nullable"
+        string confirmed_rh "nullable"
+        string reason "nullable"
+        datetime decided_at
     }
     donor_notifications {
         bigint id PK
@@ -117,7 +123,7 @@ erDiagram
         bigint id PK
         bigint request_id FK
         bigint component_id FK
-        bigint bank_id FK "must equal request source and component bank"
+        bigint bank_id FK "allocation bank; matches component"
         bigint active_component_id UK "nullable generated key"
         bigint confirmed_by FK
         string state
@@ -158,6 +164,9 @@ erDiagram
         string rh
         string data_source
         string model_version
+        decimal attribution_radius_km
+        string attribution_policy_version
+        datetime input_cutoff_at
         datetime generated_at
     }
     forecast_points {
@@ -167,14 +176,14 @@ erDiagram
         decimal predicted_units
     }
 
-    %% Composite unique indexes are enforced in the companion Laravel migration.
+    %% Implement these composite unique indexes in Laravel migrations.
     %% patients(hospital_id, medical_id)
     %% forecast_points(run_id, target_date)
     %% reservations.active_component_id is unique and populated only while active.
-    %% Composite FKs bind each bank_id to its component/donation and assigned staff.
-    %% Triggers require active reservations to match the request current source bank.
+    %% Enforce bank ownership across components, donations and assigned staff.
+    %% Database logic must require active reservations to match the request current source bank.
     %% Released/issued historical reservations retain their original bank during reassignment.
-    %% Issue/disposal exclusion is enforced by database triggers in the companion migration.
+    %% Enforce issue/disposal exclusion in the database when implementing migrations.
     %% Seeded role codes: administrator, bank_admin, bank_donor_collection,
     %% bank_inventory, bank_fulfillment, laboratory_testing,
     %% laboratory_release, hospital_requester.
@@ -183,6 +192,13 @@ erDiagram
     %% only to a different user with the same bank_id; other role/organization edits
     %% remain administrator-only. Enforce this through backend authorization policy.
     %% ForecastRun.bank_id scopes each run; ForecastPoint inherits its bank via run_id.
+    %% Screening owns one current decision per donation; corrections are audited.
+    %% Inventory reads that decision before component availability or issue.
+    %% Unassigned unmet request demand contributes its unfulfilled units to
+    %% every active bank within attribution_radius_km of the requesting hospital.
+    %% Assigned requests contribute unfulfilled units to their source_bank_id only.
+    %% If no bank is within range, keep the demand unassigned for network reporting.
+    %% Per-bank forecast totals must not be summed as unique network demand.
 
     roles ||--o{ users : assigns
     banks |o--o{ users : assigns
@@ -196,12 +212,13 @@ erDiagram
     banks ||--o{ forecast_runs : forecasts
     donors ||--o{ donations : attempts
     donations ||--o{ screening_results : has
+    donations ||--o| screening_decisions : has_current_decision
     donations ||--o{ donor_notifications : triggers
     donations ||--o{ components : yields
     users |o--o{ donations : collects
     users |o--o{ donations : assesses
-    users |o--o{ donations : releases
     users ||--o{ screening_results : records
+    users ||--o{ screening_decisions : decides
     users ||--o{ components : creates
     hospitals ||--o{ patients : registers
     hospitals ||--o{ hospital_requests : submits
