@@ -1,0 +1,22 @@
+{
+    "name": "bloodbankplatform/donors",
+    "description": "Staff-managed donor profiles",
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\Donors\\": "app/",
+            "Modules\\Donors\\Database\\Factories\\": "database/factories/",
+            "Modules\\Donors\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\Donors\\Tests\\": "tests/"
+        }
+    }
+}

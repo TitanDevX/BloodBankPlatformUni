@@ -1,0 +1,11 @@
+{
+    "name": "Screening",
+    "alias": "screening",
+    "description": "Donation tests and release decisions",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Screening\\Providers\\ScreeningServiceProvider"
+    ],
+    "files": []
+}

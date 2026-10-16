@@ -1,0 +1,11 @@
+{
+    "name": "Traceability",
+    "alias": "traceability",
+    "description": "Record-chain lookup and action history",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Traceability\\Providers\\TraceabilityServiceProvider"
+    ],
+    "files": []
+}
