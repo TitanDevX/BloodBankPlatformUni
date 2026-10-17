@@ -11,45 +11,48 @@ hide footbox
 skinparam maxMessageSize 240
 autonumber
 actor "Bank Administrator" as Admin
-boundary "React Client" as Client
-control UserController as Ctrl
-control "Assignment Policy / Service" as Policy
+participant "Staff Role Assignment Page" as Client
+participant UserController as Ctrl
+participant "Assignment Policy / Service" as Policy
 database "Shared Database" as DB
+note over Client, Ctrl
+ HTTP contract: POST /v1/users/{user}:assignRole
+end note
 note over Admin, Client
  Precondition: actor and selected colleague are different users
  in the same non-null bank; both records already exist.
 end note
-Admin -> Client: Submit a permitted new role for selected colleague
-Client -> Ctrl: POST /v1/users/{user}:assignRole\nRole only; authenticated request
-Ctrl -> Policy: Verify authentication, active actor and bank-admin privilege
+Admin -> Client: submitRoleChange(targetUserId, role)
+Client -> Ctrl: assignRole(targetUserId, role)
+Ctrl -> Policy: authorizeBankRoleAssignment(currentUser)
 break Unauthenticated or unauthorized actor
- Policy --> Ctrl: Access denied
- Ctrl --> Client: Access error; no mutation
- Client --> Admin: Show denial
+ Policy --> Ctrl: accessDenied
+ Ctrl --> Client: accessError
+ Client --> Admin: showAccessDenied()
 end
-Ctrl -> Policy: Validate role-only payload and target
-Policy -> DB: Load selected target and current bank scope
-DB --> Policy: Target and bank assignment
-Policy -> Policy: Check same non-null bank, different user,\nallowed role and no organization/profile/status edits
+Ctrl -> Policy: validateRoleAssignment(targetUserId, role)
+Policy -> DB: loadTargetAndCurrentBankScope(targetUserId, currentUser)
+DB --> Policy: targetAndBankScope
+Policy -> Policy: checkSameBankDifferentUserAndAllowedRole(currentUser, target, role)
 break Cross-bank, self-change, prohibited role or extra edits
- Policy --> Ctrl: Permission denied; unchanged target
- Ctrl --> Client: Deny role change
- Client --> Admin: Show denial
+ Policy --> Ctrl: permissionDenied
+ Ctrl --> Client: permissionDenied
+ Client --> Admin: showAccessDenied()
 end
-Policy -> DB: Begin transaction; lock target and\nrecheck current actor/target scope
-DB --> Policy: Current locked assignment
+Policy -> DB: beginTransactionLockTargetAndRecheckScope(currentUser, target)
+DB --> Policy: lockedAssignment
 break Guard no longer holds
- Policy -> DB: Roll back; no mutation
- Policy --> Ctrl: Permission denied
- Ctrl --> Client: Deny role change
- Client --> Admin: Show denial
+ Policy -> DB: rollBack()
+ Policy --> Ctrl: permissionDenied
+ Ctrl --> Client: permissionDenied
+ Client --> Admin: showAccessDenied()
 end
-Policy -> DB: Update role only; record old/new role audit
-DB --> Policy: Updated target
-Policy -> DB: Commit
-Policy --> Ctrl: Safe user summary
-Ctrl --> Client: Return assigned role and permitted target summary
-Client --> Admin: Show successful role assignment
+Policy -> DB: updateRoleAndAudit(target, role)
+DB --> Policy: updatedTarget
+Policy -> DB: commit()
+Policy --> Ctrl: safeUserSummary
+Ctrl --> Client: safeUserSummary
+Client --> Admin: showAssignedRole(safeUserSummary)
 note over Policy, DB
  Allowed: bank_donor_collection, bank_inventory, bank_fulfillment.
  Target organization, profile and active status remain unchanged.

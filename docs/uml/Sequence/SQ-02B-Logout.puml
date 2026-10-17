@@ -11,38 +11,41 @@ hide footbox
 skinparam maxMessageSize 240
 autonumber
 actor "Staff Member" as Staff
-boundary "React Client" as Client
-control SessionController as Ctrl
-control "Authentication / Session Logic" as Session
+participant "Workspace Page" as Client
+participant SessionController as Ctrl
+participant "Authentication / Session Logic" as Session
 database "Token Store" as DB
+note over Client, Ctrl
+ HTTP contract: DELETE /v1/sessions/current
+end note
 note over Staff, Client
  Precondition: the request presents the current session token.
 end note
-Staff -> Client: Select Log Out
-Client -> Ctrl: DELETE /v1/sessions/current\nBearer current token
-Ctrl -> Session: Identify current token and user
-Session -> DB: Verify token hash, expiry and revocation
-DB --> Session: Token/user or invalid credentials
+Staff -> Client: selectLogOut()
+Client -> Ctrl: deleteCurrentSession(accessToken)
+Ctrl -> Session: identifyCurrentSession(accessToken)
+Session -> DB: verifyToken(accessToken)
+DB --> Session: tokenAndUserOrInvalid
 break Missing, expired or revoked credentials
- Session --> Ctrl: Unauthenticated
- Ctrl --> Client: 401 UNAUTHENTICATED
- Client -> Client: Clear local credential state
- Client --> Staff: Show session-expired feedback
+ Session --> Ctrl: unauthenticated
+ Ctrl --> Client: authenticationError(401, UNAUTHENTICATED)
+ Client -> Client: clearLocalCredentials()
+ Client --> Staff: showSessionExpired()
 end
-Session -> Session: Check current account activity
+Session -> Session: checkActiveAccount(currentUser)
 break Inactive account
- Session --> Ctrl: Account inactive
- Ctrl --> Client: 403 PERMISSION_DENIED
- Client -> Client: Clear local credential state
- Client --> Staff: Show access feedback
+ Session --> Ctrl: accountInactive
+ Ctrl --> Client: accessError(403, PERMISSION_DENIED)
+ Client -> Client: clearLocalCredentials()
+ Client --> Staff: showAccessDenied()
 end
-Ctrl -> Session: Revoke presenting token only
-Session -> DB: Delete current token verifier
-DB --> Session: Revoked
-Session --> Ctrl: Revocation completed
-Ctrl --> Client: 200 empty body
-Client -> Client: Remove local credential state
-Client --> Staff: Display sign-in screen
+Ctrl -> Session: revokeCurrentToken(currentToken)
+Session -> DB: deleteTokenVerifier(currentToken)
+DB --> Session: tokenRevoked
+Session --> Ctrl: revocationCompleted
+Ctrl --> Client: emptySuccess(200)
+Client -> Client: clearLocalCredentials()
+Client --> Staff: showLoginPage()
 note over Client, DB
  Network failure: local cleanup does not prove server revocation.
  Do not recheck the password, issue a new token,

@@ -11,39 +11,42 @@ hide footbox
 skinparam maxMessageSize 240
 autonumber
 actor "Staff User" as Staff
-boundary "React Client" as Client
-control SessionController as Ctrl
-control "Authentication Logic" as Auth
+participant "Login Page" as Client
+participant SessionController as Ctrl
+participant "Authentication Logic" as Auth
 database "Database / Token Store" as DB
-Staff -> Client: Submit email and password
-Client -> Ctrl: POST /v1/sessions
-Ctrl -> Ctrl: Apply configured login rate limit
+note over Client, Ctrl
+ HTTP contract: POST /v1/sessions
+end note
+Staff -> Client: submitLogin(email, password)
+Client -> Ctrl: createSession(email, password)
+Ctrl -> Ctrl: checkLoginRateLimit(email, clientIp)
 break Excessive attempts
- Ctrl --> Client: 429 RESOURCE_EXHAUSTED
- Client --> Staff: Show retry-later feedback
+ Ctrl --> Client: rateLimitError(429, RESOURCE_EXHAUSTED)
+ Client --> Staff: showRetryLater()
 end
-Ctrl -> Ctrl: Validate credential fields
+Ctrl -> Ctrl: validateCredentials(email, password)
 break Invalid request fields
- Ctrl --> Client: 400 INVALID_ARGUMENT
- Client --> Staff: Show validation feedback
+ Ctrl --> Client: validationErrors(400, INVALID_ARGUMENT)
+ Client --> Staff: showValidationErrors(validationErrors)
 end
-Ctrl -> Auth: Authenticate submitted credentials
-Auth -> DB: Find user by email
-DB --> Auth: User or no matching user
-Auth -> Auth: Verify password hash and active account
+Ctrl -> Auth: authenticate(email, password)
+Auth -> DB: findUserByEmail(email)
+DB --> Auth: userOrNull
+Auth -> Auth: verifyPasswordAndActiveAccount(user, password)
 break Invalid credentials or inactive account
- Auth --> Ctrl: Authentication rejected
- Ctrl --> Client: Generic 401 UNAUTHENTICATED
- Client --> Staff: Show generic login rejection
+ Auth --> Ctrl: authenticationRejected
+ Ctrl --> Client: authenticationError(401, UNAUTHENTICATED)
+ Client --> Staff: showLoginError()
 end
-Auth -> DB: Load current role and organization scope
-DB --> Auth: Current user representation
-Auth -> DB: Store opaque token verifier and expiry
-DB --> Auth: Token created
-Auth --> Ctrl: Plaintext token once; user and expireTime
-Ctrl --> Client: 200 authentication response
-Client -> Client: Keep credential state in memory
-Client --> Staff: Display permitted workspace
+Auth -> DB: loadCurrentRoleAndOrganization(user)
+DB --> Auth: currentUser
+Auth -> DB: storeTokenVerifierAndExpiry(currentUser)
+DB --> Auth: createdToken
+Auth --> Ctrl: sessionResult(accessToken, currentUser, expireTime)
+Ctrl --> Client: sessionResult(accessToken, currentUser, expireTime)
+Client -> Client: keepSessionInMemory(sessionResult)
+Client --> Staff: showPermittedWorkspace(currentUser)
 note over Auth, DB
  Logical authentication responsibility; not a claimed extra deployed service.
  Sanctum personal access token is opaque, not a signed JWT.
