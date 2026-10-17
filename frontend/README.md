@@ -11,19 +11,19 @@ npm run dev
 
 On Windows PowerShell with restricted script execution, use `npm.cmd` instead of `npm`.
 
-`npm run build` creates `dist/`; `npm test` checks the role navigation boundaries.
+`npm run build` creates `dist/`; `npm test` checks role navigation and the session API client.
 
 ## Screens
 
 - `#/login`: staff sign-in, password visibility, validation, recovery guidance, demo entry.
-- `#/register`: staff access-request draft. Download it for your administrator; it does not create an account or send an email. Donors have no login, and public registration is not in the documented API.
+- Staff accounts are created by an administrator through the backend API. There is no public registration screen.
 - `#/workspace/Overview`: responsive shared workspace with role-specific navigation. Demo mode previews all eight documented roles, and contains no operational records. Module destinations are explicit layout placeholders, not implemented clinical workflows.
 
 ## Connect authentication
 
-Copy `.env.example` to `.env.local` and set `VITE_API_BASE_URL` to the backend URL including `/v1`. Restart Vite. Login calls `POST /sessions` with `{email,password}` and consumes the documented `{user,accessToken}` response. Logout calls `DELETE /sessions/current`. The backend needs compatible CORS configuration. Tokens live only in React memory, so a reload signs out locally; no passwords or bearer tokens are persisted. Server-side token expiry/revocation must be configured by the backend. If logout fails, the frontend warns that server revocation was not confirmed.
+Run Laravel on `127.0.0.1:8001` and Vite with `npm run dev`. Vite forwards `/v1` requests to Laravel, so login works without a frontend environment file. To use another Laravel origin, set `VITE_BACKEND_ORIGIN` in `.env.local`. For a separate API origin in deployment, set `VITE_API_BASE_URL` including `/v1` and configure CORS; otherwise route `/v1` to Laravel on the same origin. Login calls `POST /v1/sessions` with `{email,password}` and consumes `{user,accessToken}`. Logout calls `DELETE /v1/sessions/current`. Tokens live only in React memory, so a reload signs out locally; no passwords or bearer tokens are persisted. If logout fails, the frontend warns that server revocation was not confirmed.
 
-The API reference describes proposed endpoints, not working routes. No account-request, reset-password or operational endpoints are invented here. Real operational modules must implement authenticated requests, handle expired/deactivated sessions, and use authoritative server authorization. Frontend navigation is only a UX boundary. Do not expose the demo as authenticated backend access.
+The session and user-management API routes are implemented; other operational routes in the API reference remain proposed. Real operational modules must implement authenticated requests, handle expired/deactivated sessions, and use authoritative server authorization. Frontend navigation is only a UX boundary. Do not expose the demo as authenticated backend access.
 
 ## Design and source decisions
 
