@@ -1,4 +1,4 @@
-# Hema frontend
+# SBN — Syrian Blood Network frontend
 
 React + Vite frontend for the blood bank platform. All project changes are contained in `frontend/`.
 
