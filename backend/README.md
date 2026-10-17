@@ -7,6 +7,16 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## Blood Bank Platform API documentation
+
+Run `php artisan serve` from this directory, then open `/docs/api` for Swagger UI. The served OpenAPI file is `/docs/api/openapi.yaml`; edit the source at `../docs/openapi.yaml` when an endpoint changes. Swagger UI includes **Authorize** for the bearer token returned by `POST /v1/sessions`.
+
+The specification lists implemented endpoints only. Planned routes remain in `../docs/BACKEND_API_REFERENCE.md` until they are built.
+
+For local demonstrations, run `php artisan migrate --seed` (or `php artisan db:seed` on an existing database). The seed creates `admin@demo.com` with password `123456` and administrator access. This short password is only for the local/test demo account; the seeder never creates it in other environments. Set `DEMO_ADMIN_ENABLED=false` to omit it locally. New users created through the API require a password of at least 12 characters.
+
+Log in with `POST /v1/sessions`, then paste its `accessToken` into Swagger UI's **Authorize** dialog. The administrator can list roles, create/list/read users, update names and emails, assign a role with its required bank or hospital, and deactivate or reactivate accounts. User deletion is intentionally unavailable so existing records keep their history.
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
