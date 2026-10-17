@@ -1,0 +1,62 @@
+@startuml SQ01D_Deactivate
+title SQ-01D Administrator deactivates an organization\nFR-01 | UC-01.4 | Essential
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam ArrowFontSize 13
+skinparam noteFontSize 12
+skinparam dpi 140
+hide footbox
+skinparam maxMessageSize 240
+autonumber
+actor Administrator as Admin
+boundary "React Client" as Client
+control "BankController\n(hospital variant: HospitalController)" as Ctrl
+control "Authorization Policy" as Policy
+control "OrganizationService" as Svc
+database "Shared Database" as DB
+note over Admin, Client
+ Precondition: one existing permitted bank is selected.
+ The administrator has reviewed deactivation impact.
+end note
+Admin -> Client: Confirm deactivation and supply reason
+Client -> Ctrl: POST /v1/banks/{bank}:deactivate\nReason and idempotency key
+Ctrl -> Policy: Authenticate; authorize administrator and scope
+break Unauthenticated or forbidden role/scope
+ Policy --> Ctrl: Denied
+ Ctrl --> Client: Access error
+ Client --> Admin: Show denial; no changes
+end
+Policy --> Ctrl: Permitted
+Ctrl -> Svc: Deactivate selected organization
+Svc -> Svc: Validate reason and command input
+break Invalid command input
+ Svc --> Ctrl: Validation failure
+ Ctrl --> Client: Input errors
+ Client --> Admin: Correct input; organization unchanged
+end
+Svc -> DB: Begin transaction; load and lock organization
+DB --> Svc: Organization or absent
+break Authorized organization absent
+ Svc -> DB: Roll back
+ Svc --> Ctrl: Not found
+ Ctrl --> Client: Not-found result
+ Client --> Admin: Show not found
+end
+alt Already inactive or completed replay
+ Svc -> Svc: Preserve current inactive state and history
+else Active organization
+ Svc -> DB: Set active = false; append audit history
+ DB --> Svc: Inactive organization
+end
+Svc -> DB: Commit without deleting historical links
+Svc --> Ctrl: Updated resource
+Ctrl --> Client: Return inactive organization
+Client --> Admin: Display deactivation result
+note over Svc, DB
+ No creation, bulk cancellation or stock/request rewrite.
+ Relevant new operations must respect inactive status.
+ Hospital variant: /v1/hospitals/{hospital}:deactivate.
+end note
+@enduml

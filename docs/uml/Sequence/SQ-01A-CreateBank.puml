@@ -1,0 +1,55 @@
+@startuml SQ01A_Create
+title SQ-01A Administrator registers a blood bank\nFR-01 | UC-01.1 | Essential
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam ArrowFontSize 13
+skinparam noteFontSize 12
+skinparam dpi 140
+hide footbox
+skinparam maxMessageSize 240
+autonumber
+actor Administrator as Admin
+boundary "React Client" as Client
+control "BankController" as Ctrl
+control "Authorization Policy" as Policy
+control "OrganizationService" as Svc
+database "Shared Database" as DB
+note over Admin, Client
+ Precondition: signed-in active administrator;
+ a new blood bank form is ready.
+end note
+Admin -> Client: Submit new blood bank details
+Client -> Ctrl: POST /v1/banks\nDetails and idempotency key
+Ctrl -> Policy: Authenticate and authorize creation
+break Missing authentication or denied permission
+ Policy --> Ctrl: Access denied
+ Ctrl --> Client: Unauthenticated / permission denied
+ Client --> Admin: Show denial; no record created
+end
+Policy --> Ctrl: Creation permitted
+Ctrl -> Svc: Create blood bank from submitted details
+Svc -> Svc: Validate required fields, contact\nand applicable coordinate constraints
+break Invalid fields or coordinates
+ Svc --> Ctrl: Validation failure
+ Ctrl --> Client: Return field errors
+ Client --> Admin: Correct form; no record created
+end
+Svc -> DB: Begin short transaction;\ncheck/bind idempotency key
+alt Replay of the same completed creation
+ DB --> Svc: Original created resource
+ Svc -> DB: End transaction without another creation
+else New creation
+ Svc -> DB: Insert blood bank with distinct identifier;\nappend creation audit; save replay result
+ DB --> Svc: Created resource
+ Svc -> DB: Commit
+end
+Svc --> Ctrl: Created or replayed resource
+Ctrl --> Client: Return blood bank identifier and details
+Client --> Admin: Show created blood bank
+note over Svc, DB
+ One creation only; no edit or deactivation occurs here.
+ Invalid input or failed persistence leaves no partial creation.
+end note
+@enduml
