@@ -124,43 +124,46 @@ hide footbox
 skinparam maxMessageSize 240
 autonumber
 actor Administrator as Admin
-boundary "React Client" as Client
-control "BankController" as Ctrl
-control "Authorization Policy" as Policy
-control "OrganizationService" as Svc
+participant "Create Bank Page" as Client
+participant "BankController" as Ctrl
+participant "Authorization Policy" as Policy
+participant "OrganizationService" as Svc
 database "Shared Database" as DB
+note over Client, Ctrl
+ HTTP contract: POST /v1/banks
+end note
 note over Admin, Client
  Precondition: signed-in active administrator;
  a new blood bank form is ready.
 end note
-Admin -> Client: Submit new blood bank details
-Client -> Ctrl: POST /v1/banks\nDetails and idempotency key
-Ctrl -> Policy: Authenticate and authorize creation
+Admin -> Client: submitBankDetails(bankData)
+Client -> Ctrl: createBank(bankData, idempotencyKey)
+Ctrl -> Policy: authorizeBankCreation(currentUser)
 break Missing authentication or denied permission
- Policy --> Ctrl: Access denied
- Ctrl --> Client: Unauthenticated / permission denied
- Client --> Admin: Show denial; no record created
+ Policy --> Ctrl: accessDenied
+ Ctrl --> Client: accessError
+ Client --> Admin: showAccessDenied()
 end
-Policy --> Ctrl: Creation permitted
-Ctrl -> Svc: Create blood bank from submitted details
-Svc -> Svc: Validate required fields, contact\nand applicable coordinate constraints
+Policy --> Ctrl: permissionGranted
+Ctrl -> Svc: createBank(bankData, idempotencyKey)
+Svc -> Svc: validateBankDetails(bankData)
 break Invalid fields or coordinates
- Svc --> Ctrl: Validation failure
- Ctrl --> Client: Return field errors
- Client --> Admin: Correct form; no record created
+ Svc --> Ctrl: validationErrors
+ Ctrl --> Client: validationErrors
+ Client --> Admin: showValidationErrors(validationErrors)
 end
-Svc -> DB: Begin short transaction;\ncheck/bind idempotency key
+Svc -> DB: beginTransactionAndCheckReplay(idempotencyKey)
 alt Replay of the same completed creation
- DB --> Svc: Original created resource
- Svc -> DB: End transaction without another creation
+ DB --> Svc: originalBank
+ Svc -> DB: completeReplayTransaction()
 else New creation
- Svc -> DB: Insert blood bank with distinct identifier;\nappend creation audit; save replay result
- DB --> Svc: Created resource
- Svc -> DB: Commit
+ Svc -> DB: insertBankAndAudit(bankData, idempotencyKey)
+ DB --> Svc: createdBank
+ Svc -> DB: commit()
 end
-Svc --> Ctrl: Created or replayed resource
-Ctrl --> Client: Return blood bank identifier and details
-Client --> Admin: Show created blood bank
+Svc --> Ctrl: bank
+Ctrl --> Client: bank
+Client --> Admin: showCreatedBank(bank)
 note over Svc, DB
  One creation only; no edit or deactivation occurs here.
  Invalid input or failed persistence leaves no partial creation.
@@ -186,43 +189,46 @@ hide footbox
 skinparam maxMessageSize 240
 autonumber
 actor Administrator as Admin
-boundary "React Client" as Client
-control "HospitalController" as Ctrl
-control "Authorization Policy" as Policy
-control "OrganizationService" as Svc
+participant "Create Hospital Page" as Client
+participant "HospitalController" as Ctrl
+participant "Authorization Policy" as Policy
+participant "OrganizationService" as Svc
 database "Shared Database" as DB
+note over Client, Ctrl
+ HTTP contract: POST /v1/hospitals
+end note
 note over Admin, Client
  Precondition: signed-in active administrator;
  a new hospital form is ready.
 end note
-Admin -> Client: Submit new hospital details
-Client -> Ctrl: POST /v1/hospitals\nDetails and idempotency key
-Ctrl -> Policy: Authenticate and authorize creation
+Admin -> Client: submitHospitalDetails(hospitalData)
+Client -> Ctrl: createHospital(hospitalData, idempotencyKey)
+Ctrl -> Policy: authorizeHospitalCreation(currentUser)
 break Missing authentication or denied permission
- Policy --> Ctrl: Access denied
- Ctrl --> Client: Unauthenticated / permission denied
- Client --> Admin: Show denial; no record created
+ Policy --> Ctrl: accessDenied
+ Ctrl --> Client: accessError
+ Client --> Admin: showAccessDenied()
 end
-Policy --> Ctrl: Creation permitted
-Ctrl -> Svc: Create hospital from submitted details
-Svc -> Svc: Validate required fields, contact\nand applicable coordinate constraints
+Policy --> Ctrl: permissionGranted
+Ctrl -> Svc: createHospital(hospitalData, idempotencyKey)
+Svc -> Svc: validateHospitalDetails(hospitalData)
 break Invalid fields or coordinates
- Svc --> Ctrl: Validation failure
- Ctrl --> Client: Return field errors
- Client --> Admin: Correct form; no record created
+ Svc --> Ctrl: validationErrors
+ Ctrl --> Client: validationErrors
+ Client --> Admin: showValidationErrors(validationErrors)
 end
-Svc -> DB: Begin short transaction;\ncheck/bind idempotency key
+Svc -> DB: beginTransactionAndCheckReplay(idempotencyKey)
 alt Replay of the same completed creation
- DB --> Svc: Original created resource
- Svc -> DB: End transaction without another creation
+ DB --> Svc: originalHospital
+ Svc -> DB: completeReplayTransaction()
 else New creation
- Svc -> DB: Insert hospital with distinct identifier;\nappend creation audit; save replay result
- DB --> Svc: Created resource
- Svc -> DB: Commit
+ Svc -> DB: insertHospitalAndAudit(hospitalData, idempotencyKey)
+ DB --> Svc: createdHospital
+ Svc -> DB: commit()
 end
-Svc --> Ctrl: Created or replayed resource
-Ctrl --> Client: Return hospital identifier and details
-Client --> Admin: Show created hospital
+Svc --> Ctrl: hospital
+Ctrl --> Client: hospital
+Client --> Admin: showCreatedHospital(hospital)
 note over Svc, DB
  One creation only; no edit or deactivation occurs here.
  Invalid input or failed persistence leaves no partial creation.
@@ -248,45 +254,48 @@ hide footbox
 skinparam maxMessageSize 240
 autonumber
 actor Administrator as Admin
-boundary "React Client" as Client
-control "BankController\n(hospital variant: HospitalController)" as Ctrl
-control "Authorization Policy" as Policy
-control "OrganizationService" as Svc
+participant "Edit Organization Page" as Client
+participant "BankController\n(hospital variant: HospitalController)" as Ctrl
+participant "Authorization Policy" as Policy
+participant "OrganizationService" as Svc
 database "Shared Database" as DB
+note over Client, Ctrl
+ HTTP contract: PATCH /v1/banks/{bank}
+end note
 note over Admin, Client
  Precondition: an existing bank is selected
  and current details are loaded.
  Hospital updates reuse this interaction with HospitalController.
 end note
-Admin -> Client: Save changed name/contact/location fields
-Client -> Ctrl: PATCH /v1/banks/{bank}\nChanged fields and updateMask
-Ctrl -> Policy: Authenticate and authorize administrator/scope
+Admin -> Client: saveOrganizationChanges(organizationId, changes)
+Client -> Ctrl: updateOrganization(organizationId, changes, updateMask)
+Ctrl -> Policy: authorizeOrganizationUpdate(currentUser, organizationId)
 break Missing authentication or denied permission/scope
- Policy --> Ctrl: Denied
- Ctrl --> Client: Access error
- Client --> Admin: Show denial; no changes
+ Policy --> Ctrl: accessDenied
+ Ctrl --> Client: accessError
+ Client --> Admin: showAccessDenied()
 end
-Policy --> Ctrl: Permitted
-Ctrl -> Svc: Update selected organization
-Svc -> DB: Load selected organization
-DB --> Svc: Organization or absent
+Policy --> Ctrl: permissionGranted
+Ctrl -> Svc: updateOrganization(organizationId, changes, updateMask)
+Svc -> DB: findOrganization(organizationId)
+DB --> Svc: organizationOrNull
 break Authorized resource absent
- Svc --> Ctrl: Not found
- Ctrl --> Client: Not-found result
- Client --> Admin: Show not found
+ Svc --> Ctrl: notFound
+ Ctrl --> Client: notFound
+ Client --> Admin: showNotFound()
 end
-Svc -> Svc: Validate mutable fields, mask, contact\nand active-coordinate constraints
+Svc -> Svc: validateOrganizationChanges(organization, changes, updateMask)
 break Invalid coordinates, fields or immutable identity/type edit
- Svc --> Ctrl: Validation failure
- Ctrl --> Client: Field errors
- Client --> Admin: Correct form; existing details unchanged
+ Svc --> Ctrl: validationErrors
+ Ctrl --> Client: validationErrors
+ Client --> Admin: showValidationErrors(validationErrors)
 end
-Svc -> DB: Begin transaction; save changes\nand old/new audit values
-DB --> Svc: Updated organization
-Svc -> DB: Commit
-Svc --> Ctrl: Updated details
-Ctrl --> Client: Return current organization details
-Client --> Admin: Display saved changes
+Svc -> DB: saveChangesAndAuditInTransaction(organization, changes)
+DB --> Svc: updatedOrganization
+Svc -> DB: commit()
+Svc --> Ctrl: updatedOrganization
+Ctrl --> Client: updatedOrganization
+Client --> Admin: showUpdatedOrganization(updatedOrganization)
 note over Svc, DB
  Identifier and linked history remain stable.
  No status deactivation or historical issue/allocation rewrite.
@@ -314,49 +323,52 @@ hide footbox
 skinparam maxMessageSize 240
 autonumber
 actor Administrator as Admin
-boundary "React Client" as Client
-control "BankController\n(hospital variant: HospitalController)" as Ctrl
-control "Authorization Policy" as Policy
-control "OrganizationService" as Svc
+participant "Organization Details Page" as Client
+participant "BankController\n(hospital variant: HospitalController)" as Ctrl
+participant "Authorization Policy" as Policy
+participant "OrganizationService" as Svc
 database "Shared Database" as DB
+note over Client, Ctrl
+ HTTP contract: POST /v1/banks/{bank}:deactivate
+end note
 note over Admin, Client
  Precondition: one existing permitted bank is selected.
  The administrator has reviewed deactivation impact.
 end note
-Admin -> Client: Confirm deactivation and supply reason
-Client -> Ctrl: POST /v1/banks/{bank}:deactivate\nReason and idempotency key
-Ctrl -> Policy: Authenticate; authorize administrator and scope
+Admin -> Client: confirmDeactivation(organizationId, reason)
+Client -> Ctrl: deactivateOrganization(organizationId, reason, idempotencyKey)
+Ctrl -> Policy: authorizeOrganizationDeactivation(currentUser, organizationId)
 break Unauthenticated or forbidden role/scope
- Policy --> Ctrl: Denied
- Ctrl --> Client: Access error
- Client --> Admin: Show denial; no changes
+ Policy --> Ctrl: accessDenied
+ Ctrl --> Client: accessError
+ Client --> Admin: showAccessDenied()
 end
-Policy --> Ctrl: Permitted
-Ctrl -> Svc: Deactivate selected organization
-Svc -> Svc: Validate reason and command input
+Policy --> Ctrl: permissionGranted
+Ctrl -> Svc: deactivateOrganization(organizationId, reason, idempotencyKey)
+Svc -> Svc: validateDeactivationInput(reason, idempotencyKey)
 break Invalid command input
- Svc --> Ctrl: Validation failure
- Ctrl --> Client: Input errors
- Client --> Admin: Correct input; organization unchanged
+ Svc --> Ctrl: validationErrors
+ Ctrl --> Client: validationErrors
+ Client --> Admin: showValidationErrors(validationErrors)
 end
-Svc -> DB: Begin transaction; load and lock organization
-DB --> Svc: Organization or absent
+Svc -> DB: beginTransactionAndLockOrganization(organizationId)
+DB --> Svc: organizationOrNull
 break Authorized organization absent
- Svc -> DB: Roll back
- Svc --> Ctrl: Not found
- Ctrl --> Client: Not-found result
- Client --> Admin: Show not found
+ Svc -> DB: rollBack()
+ Svc --> Ctrl: notFound
+ Ctrl --> Client: notFound
+ Client --> Admin: showNotFound()
 end
 alt Already inactive or completed replay
- Svc -> Svc: Preserve current inactive state and history
+ Svc -> Svc: retainInactiveOrganization(organization)
 else Active organization
- Svc -> DB: Set active = false; append audit history
- DB --> Svc: Inactive organization
+ Svc -> DB: deactivateAndAudit(organization, reason)
+ DB --> Svc: inactiveOrganization
 end
-Svc -> DB: Commit without deleting historical links
-Svc --> Ctrl: Updated resource
-Ctrl --> Client: Return inactive organization
-Client --> Admin: Display deactivation result
+Svc -> DB: commit()
+Svc --> Ctrl: inactiveOrganization
+Ctrl --> Client: inactiveOrganization
+Client --> Admin: showDeactivatedOrganization(inactiveOrganization)
 note over Svc, DB
  No creation, bulk cancellation or stock/request rewrite.
  Relevant new operations must respect inactive status.
@@ -383,38 +395,41 @@ hide footbox
 skinparam maxMessageSize 240
 autonumber
 actor "Authorized Staff" as Staff
-boundary "React Client" as Client
-control "OrganizationQueryController" as Ctrl
-control "Organization Query / Policy" as Query
+participant "Organizations Page" as Client
+participant "OrganizationQueryController" as Ctrl
+participant "Organization Query / Policy" as Query
 database "Shared Database" as DB
+note over Client, Ctrl
+ HTTP contract: GET /v1/banks
+end note
 note over Staff, Client
  Precondition: active authenticated staff;
  current facility-visibility scope is known.
 end note
-Staff -> Client: Open blood bank list with permitted filters
-Client -> Ctrl: GET /v1/banks\nStatus/search and pagination
-Ctrl -> Query: Authorize current facility visibility
+Staff -> Client: openOrganizations(filters, pageToken)
+Client -> Ctrl: listBanks(filters, pageToken)
+Ctrl -> Query: authorizeFacilityVisibility(currentUser)
 break Missing authentication or forbidden scope
- Query --> Ctrl: Denied
- Ctrl --> Client: Access error
- Client --> Staff: Show denial
+ Query --> Ctrl: accessDenied
+ Ctrl --> Client: accessError
+ Client --> Staff: showAccessDenied()
 end
-Query --> Ctrl: Permitted scope
-Ctrl -> Query: Validate filters and pagination
+Query --> Ctrl: permittedScope
+Ctrl -> Query: validateOrganizationQuery(filters, pageToken)
 break Invalid query
- Query --> Ctrl: Validation failure
- Ctrl --> Client: Query errors
- Client --> Staff: Correct query
+ Query --> Ctrl: validationErrors
+ Ctrl --> Client: validationErrors
+ Client --> Staff: showQueryErrors(validationErrors)
 end
-Query -> DB: Query banks within permitted scope
-DB --> Query: Matching page or empty page
-Query -> Query: Project identifiers, names, contact and location
-Query --> Ctrl: Scoped summaries and pagination
-Ctrl --> Client: Return page
+Query -> DB: findScopedBanks(permittedScope, filters, pageToken)
+DB --> Query: bankPage
+Query -> Query: projectPermittedFacilityFields(bankPage)
+Query --> Ctrl: organizationPage
+Ctrl --> Client: organizationPage
 alt Results exist
- Client --> Staff: Display permitted bank summaries
+ Client --> Staff: showOrganizations(organizationPage)
 else Empty result
- Client --> Staff: Display empty list (not an error)
+ Client --> Staff: showEmptyState()
 end
 note over Ctrl, DB
  Read only; no staff, donor or clinical records.
@@ -443,39 +458,42 @@ hide footbox
 skinparam maxMessageSize 240
 autonumber
 actor "Staff User" as Staff
-boundary "React Client" as Client
-control SessionController as Ctrl
-control "Authentication Logic" as Auth
+participant "Login Page" as Client
+participant SessionController as Ctrl
+participant "Authentication Logic" as Auth
 database "Database / Token Store" as DB
-Staff -> Client: Submit email and password
-Client -> Ctrl: POST /v1/sessions
-Ctrl -> Ctrl: Apply configured login rate limit
+note over Client, Ctrl
+ HTTP contract: POST /v1/sessions
+end note
+Staff -> Client: submitLogin(email, password)
+Client -> Ctrl: createSession(email, password)
+Ctrl -> Ctrl: checkLoginRateLimit(email, clientIp)
 break Excessive attempts
- Ctrl --> Client: 429 RESOURCE_EXHAUSTED
- Client --> Staff: Show retry-later feedback
+ Ctrl --> Client: rateLimitError(429, RESOURCE_EXHAUSTED)
+ Client --> Staff: showRetryLater()
 end
-Ctrl -> Ctrl: Validate credential fields
+Ctrl -> Ctrl: validateCredentials(email, password)
 break Invalid request fields
- Ctrl --> Client: 400 INVALID_ARGUMENT
- Client --> Staff: Show validation feedback
+ Ctrl --> Client: validationErrors(400, INVALID_ARGUMENT)
+ Client --> Staff: showValidationErrors(validationErrors)
 end
-Ctrl -> Auth: Authenticate submitted credentials
-Auth -> DB: Find user by email
-DB --> Auth: User or no matching user
-Auth -> Auth: Verify password hash and active account
+Ctrl -> Auth: authenticate(email, password)
+Auth -> DB: findUserByEmail(email)
+DB --> Auth: userOrNull
+Auth -> Auth: verifyPasswordAndActiveAccount(user, password)
 break Invalid credentials or inactive account
- Auth --> Ctrl: Authentication rejected
- Ctrl --> Client: Generic 401 UNAUTHENTICATED
- Client --> Staff: Show generic login rejection
+ Auth --> Ctrl: authenticationRejected
+ Ctrl --> Client: authenticationError(401, UNAUTHENTICATED)
+ Client --> Staff: showLoginError()
 end
-Auth -> DB: Load current role and organization scope
-DB --> Auth: Current user representation
-Auth -> DB: Store opaque token verifier and expiry
-DB --> Auth: Token created
-Auth --> Ctrl: Plaintext token once; user and expireTime
-Ctrl --> Client: 200 authentication response
-Client -> Client: Keep credential state in memory
-Client --> Staff: Display permitted workspace
+Auth -> DB: loadCurrentRoleAndOrganization(user)
+DB --> Auth: currentUser
+Auth -> DB: storeTokenVerifierAndExpiry(currentUser)
+DB --> Auth: createdToken
+Auth --> Ctrl: sessionResult(accessToken, currentUser, expireTime)
+Ctrl --> Client: sessionResult(accessToken, currentUser, expireTime)
+Client -> Client: keepSessionInMemory(sessionResult)
+Client --> Staff: showPermittedWorkspace(currentUser)
 note over Auth, DB
  Logical authentication responsibility; not a claimed extra deployed service.
  Sanctum personal access token is opaque, not a signed JWT.
@@ -502,38 +520,41 @@ hide footbox
 skinparam maxMessageSize 240
 autonumber
 actor "Staff Member" as Staff
-boundary "React Client" as Client
-control SessionController as Ctrl
-control "Authentication / Session Logic" as Session
+participant "Workspace Page" as Client
+participant SessionController as Ctrl
+participant "Authentication / Session Logic" as Session
 database "Token Store" as DB
+note over Client, Ctrl
+ HTTP contract: DELETE /v1/sessions/current
+end note
 note over Staff, Client
  Precondition: the request presents the current session token.
 end note
-Staff -> Client: Select Log Out
-Client -> Ctrl: DELETE /v1/sessions/current\nBearer current token
-Ctrl -> Session: Identify current token and user
-Session -> DB: Verify token hash, expiry and revocation
-DB --> Session: Token/user or invalid credentials
+Staff -> Client: selectLogOut()
+Client -> Ctrl: deleteCurrentSession(accessToken)
+Ctrl -> Session: identifyCurrentSession(accessToken)
+Session -> DB: verifyToken(accessToken)
+DB --> Session: tokenAndUserOrInvalid
 break Missing, expired or revoked credentials
- Session --> Ctrl: Unauthenticated
- Ctrl --> Client: 401 UNAUTHENTICATED
- Client -> Client: Clear local credential state
- Client --> Staff: Show session-expired feedback
+ Session --> Ctrl: unauthenticated
+ Ctrl --> Client: authenticationError(401, UNAUTHENTICATED)
+ Client -> Client: clearLocalCredentials()
+ Client --> Staff: showSessionExpired()
 end
-Session -> Session: Check current account activity
+Session -> Session: checkActiveAccount(currentUser)
 break Inactive account
- Session --> Ctrl: Account inactive
- Ctrl --> Client: 403 PERMISSION_DENIED
- Client -> Client: Clear local credential state
- Client --> Staff: Show access feedback
+ Session --> Ctrl: accountInactive
+ Ctrl --> Client: accessError(403, PERMISSION_DENIED)
+ Client -> Client: clearLocalCredentials()
+ Client --> Staff: showAccessDenied()
 end
-Ctrl -> Session: Revoke presenting token only
-Session -> DB: Delete current token verifier
-DB --> Session: Revoked
-Session --> Ctrl: Revocation completed
-Ctrl --> Client: 200 empty body
-Client -> Client: Remove local credential state
-Client --> Staff: Display sign-in screen
+Ctrl -> Session: revokeCurrentToken(currentToken)
+Session -> DB: deleteTokenVerifier(currentToken)
+DB --> Session: tokenRevoked
+Session --> Ctrl: revocationCompleted
+Ctrl --> Client: emptySuccess(200)
+Client -> Client: clearLocalCredentials()
+Client --> Staff: showLoginPage()
 note over Client, DB
  Network failure: local cleanup does not prove server revocation.
  Do not recheck the password, issue a new token,
@@ -560,45 +581,48 @@ hide footbox
 skinparam maxMessageSize 240
 autonumber
 actor "Bank Administrator" as Admin
-boundary "React Client" as Client
-control UserController as Ctrl
-control "Assignment Policy / Service" as Policy
+participant "Staff Role Assignment Page" as Client
+participant UserController as Ctrl
+participant "Assignment Policy / Service" as Policy
 database "Shared Database" as DB
+note over Client, Ctrl
+ HTTP contract: POST /v1/users/{user}:assignRole
+end note
 note over Admin, Client
  Precondition: actor and selected colleague are different users
  in the same non-null bank; both records already exist.
 end note
-Admin -> Client: Submit a permitted new role for selected colleague
-Client -> Ctrl: POST /v1/users/{user}:assignRole\nRole only; authenticated request
-Ctrl -> Policy: Verify authentication, active actor and bank-admin privilege
+Admin -> Client: submitRoleChange(targetUserId, role)
+Client -> Ctrl: assignRole(targetUserId, role)
+Ctrl -> Policy: authorizeBankRoleAssignment(currentUser)
 break Unauthenticated or unauthorized actor
- Policy --> Ctrl: Access denied
- Ctrl --> Client: Access error; no mutation
- Client --> Admin: Show denial
+ Policy --> Ctrl: accessDenied
+ Ctrl --> Client: accessError
+ Client --> Admin: showAccessDenied()
 end
-Ctrl -> Policy: Validate role-only payload and target
-Policy -> DB: Load selected target and current bank scope
-DB --> Policy: Target and bank assignment
-Policy -> Policy: Check same non-null bank, different user,\nallowed role and no organization/profile/status edits
+Ctrl -> Policy: validateRoleAssignment(targetUserId, role)
+Policy -> DB: loadTargetAndCurrentBankScope(targetUserId, currentUser)
+DB --> Policy: targetAndBankScope
+Policy -> Policy: checkSameBankDifferentUserAndAllowedRole(currentUser, target, role)
 break Cross-bank, self-change, prohibited role or extra edits
- Policy --> Ctrl: Permission denied; unchanged target
- Ctrl --> Client: Deny role change
- Client --> Admin: Show denial
+ Policy --> Ctrl: permissionDenied
+ Ctrl --> Client: permissionDenied
+ Client --> Admin: showAccessDenied()
 end
-Policy -> DB: Begin transaction; lock target and\nrecheck current actor/target scope
-DB --> Policy: Current locked assignment
+Policy -> DB: beginTransactionLockTargetAndRecheckScope(currentUser, target)
+DB --> Policy: lockedAssignment
 break Guard no longer holds
- Policy -> DB: Roll back; no mutation
- Policy --> Ctrl: Permission denied
- Ctrl --> Client: Deny role change
- Client --> Admin: Show denial
+ Policy -> DB: rollBack()
+ Policy --> Ctrl: permissionDenied
+ Ctrl --> Client: permissionDenied
+ Client --> Admin: showAccessDenied()
 end
-Policy -> DB: Update role only; record old/new role audit
-DB --> Policy: Updated target
-Policy -> DB: Commit
-Policy --> Ctrl: Safe user summary
-Ctrl --> Client: Return assigned role and permitted target summary
-Client --> Admin: Show successful role assignment
+Policy -> DB: updateRoleAndAudit(target, role)
+DB --> Policy: updatedTarget
+Policy -> DB: commit()
+Policy --> Ctrl: safeUserSummary
+Ctrl --> Client: safeUserSummary
+Client --> Admin: showAssignedRole(safeUserSummary)
 note over Policy, DB
  Allowed: bank_donor_collection, bank_inventory, bank_fulfillment.
  Target organization, profile and active status remain unchanged.

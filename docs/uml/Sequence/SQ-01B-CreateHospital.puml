@@ -11,43 +11,46 @@ hide footbox
 skinparam maxMessageSize 240
 autonumber
 actor Administrator as Admin
-boundary "React Client" as Client
-control "HospitalController" as Ctrl
-control "Authorization Policy" as Policy
-control "OrganizationService" as Svc
+participant "Create Hospital Page" as Client
+participant "HospitalController" as Ctrl
+participant "Authorization Policy" as Policy
+participant "OrganizationService" as Svc
 database "Shared Database" as DB
+note over Client, Ctrl
+ HTTP contract: POST /v1/hospitals
+end note
 note over Admin, Client
  Precondition: signed-in active administrator;
  a new hospital form is ready.
 end note
-Admin -> Client: Submit new hospital details
-Client -> Ctrl: POST /v1/hospitals\nDetails and idempotency key
-Ctrl -> Policy: Authenticate and authorize creation
+Admin -> Client: submitHospitalDetails(hospitalData)
+Client -> Ctrl: createHospital(hospitalData, idempotencyKey)
+Ctrl -> Policy: authorizeHospitalCreation(currentUser)
 break Missing authentication or denied permission
- Policy --> Ctrl: Access denied
- Ctrl --> Client: Unauthenticated / permission denied
- Client --> Admin: Show denial; no record created
+ Policy --> Ctrl: accessDenied
+ Ctrl --> Client: accessError
+ Client --> Admin: showAccessDenied()
 end
-Policy --> Ctrl: Creation permitted
-Ctrl -> Svc: Create hospital from submitted details
-Svc -> Svc: Validate required fields, contact\nand applicable coordinate constraints
+Policy --> Ctrl: permissionGranted
+Ctrl -> Svc: createHospital(hospitalData, idempotencyKey)
+Svc -> Svc: validateHospitalDetails(hospitalData)
 break Invalid fields or coordinates
- Svc --> Ctrl: Validation failure
- Ctrl --> Client: Return field errors
- Client --> Admin: Correct form; no record created
+ Svc --> Ctrl: validationErrors
+ Ctrl --> Client: validationErrors
+ Client --> Admin: showValidationErrors(validationErrors)
 end
-Svc -> DB: Begin short transaction;\ncheck/bind idempotency key
+Svc -> DB: beginTransactionAndCheckReplay(idempotencyKey)
 alt Replay of the same completed creation
- DB --> Svc: Original created resource
- Svc -> DB: End transaction without another creation
+ DB --> Svc: originalHospital
+ Svc -> DB: completeReplayTransaction()
 else New creation
- Svc -> DB: Insert hospital with distinct identifier;\nappend creation audit; save replay result
- DB --> Svc: Created resource
- Svc -> DB: Commit
+ Svc -> DB: insertHospitalAndAudit(hospitalData, idempotencyKey)
+ DB --> Svc: createdHospital
+ Svc -> DB: commit()
 end
-Svc --> Ctrl: Created or replayed resource
-Ctrl --> Client: Return hospital identifier and details
-Client --> Admin: Show created hospital
+Svc --> Ctrl: hospital
+Ctrl --> Client: hospital
+Client --> Admin: showCreatedHospital(hospital)
 note over Svc, DB
  One creation only; no edit or deactivation occurs here.
  Invalid input or failed persistence leaves no partial creation.

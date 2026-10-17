@@ -59,3 +59,7 @@ The broad legacy management/access sources and their outdated PNGs are retired f
 [All PlantUML sources in one document](PlantUML-Sources.md)
 
 Technical review: all 16 diagrams were accepted by the renderer and every final PNG was visually inspected. Validation/cancellation/denial outcomes, responsibility lanes, catalogue identifiers and use-case pairings were checked. The export review does not claim application acceptance tests or supervisor approval.
+
+## Sequence presentation convention
+
+Sequence lifelines name the relevant page (for example, Login Page or Edit Organization Page). Requests and internal calls use logical operation names with parameters; dashed replies carry results. HTTP routes remain in contract notes. These operation names describe the design and do not claim that identically named functions or proposed business endpoints already exist in application code. Activity workflows and functional scope are unchanged by this presentation revision.
