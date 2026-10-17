@@ -1,0 +1,50 @@
+@startuml AD01A_Create
+title AD-01A Register a blood bank\nFR-01 | UC-01.1 | SQ-01A | Essential
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam ArrowFontSize 13
+skinparam noteFontSize 12
+skinparam dpi 140
+|Administrator|
+start
+:Choose Create Bank;
+note right
+ Precondition: administrator is signed in.
+ This is a new blood bank.
+end note
+repeat
+ :Enter blood bank name, contact, location\nand applicable coordinate details;
+ if (Cancel entry?) then (yes)
+  :Close form without submitting;
+  stop
+ else (no)
+  :Submit creation details;
+ endif
+ |Platform|
+ :Authenticate active actor and\ncheck administrator permission;
+ if (Creation permitted?) then (yes)
+ else (no)
+  :Return unauthenticated / permission-denied\nfeedback;
+  stop
+ endif
+ :Validate required details, contact\nand coordinate constraints;
+backward:Return field errors without saving;
+repeat while (Invalid input?) is (yes) not (no)
+:Process idempotency key;
+if (Completed identical request?) then (yes)
+ :Return original created blood bank;
+else (no)
+ :Create one blood bank, creation audit\nand replay result in one transaction;
+ if (Transaction succeeds?) then (yes)
+  :Return created identifier and details;
+ else (no)
+  :Roll back; return failure without partial\ncreation;
+  stop
+ endif
+endif
+|Administrator|
+:View blood bank creation result;
+stop
+@enduml

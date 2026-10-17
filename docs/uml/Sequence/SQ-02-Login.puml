@@ -1,36 +1,52 @@
-@startuml FR02_Login_Sequence
-title FR-02 / UC-02.1 - Log In
+@startuml SQ02A_Login
+title SQ-02A Staff member logs in\nFR-02 | UC-02.1 | Essential
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam ArrowFontSize 13
+skinparam noteFontSize 12
+skinparam dpi 140
+hide footbox
+skinparam maxMessageSize 240
 autonumber
-actor "Staff Member" as Staff
-boundary "Client" as Client
-control "AuthController" as Ctrl
-control "AuthService" as Svc
-database "Database" as DB
-Staff -> Client: Enter and submit email and password
-Client -> Ctrl: Submit login credentials
-Ctrl -> Svc: Verify credentials and account activity
-Svc -> DB: Retrieve user by email
-DB --> Svc: User record or no matching user
-Svc -> Svc: Verify credentials using stored password hash
-alt Invalid credentials
-  Svc --> Ctrl: Reject login
-  Ctrl --> Client: Login rejection
-  Client --> Staff: Display login rejection
-else Valid credentials
-  Svc -> Svc: Check account active state
-  alt Inactive account
-    Svc --> Ctrl: Reject login
-    Ctrl --> Client: Login rejection
-    Client --> Staff: Display login rejection
-  else Active account
-    Svc -> Svc: Establish session or token
-    Svc --> Ctrl: Authentication result
-    Ctrl --> Client: Session or token
-    Client --> Staff: Login successful
-  end
+actor "Staff User" as Staff
+boundary "React Client" as Client
+control SessionController as Ctrl
+control "Authentication Logic" as Auth
+database "Database / Token Store" as DB
+Staff -> Client: Submit email and password
+Client -> Ctrl: POST /v1/sessions
+Ctrl -> Ctrl: Apply configured login rate limit
+break Excessive attempts
+ Ctrl --> Client: 429 RESOURCE_EXHAUSTED
+ Client --> Staff: Show retry-later feedback
 end
-note over Svc, DB
-  Passwords are stored as hashes.
-  Initial accounts may be provisioned through seed data.
+Ctrl -> Ctrl: Validate credential fields
+break Invalid request fields
+ Ctrl --> Client: 400 INVALID_ARGUMENT
+ Client --> Staff: Show validation feedback
+end
+Ctrl -> Auth: Authenticate submitted credentials
+Auth -> DB: Find user by email
+DB --> Auth: User or no matching user
+Auth -> Auth: Verify password hash and active account
+break Invalid credentials or inactive account
+ Auth --> Ctrl: Authentication rejected
+ Ctrl --> Client: Generic 401 UNAUTHENTICATED
+ Client --> Staff: Show generic login rejection
+end
+Auth -> DB: Load current role and organization scope
+DB --> Auth: Current user representation
+Auth -> DB: Store opaque token verifier and expiry
+DB --> Auth: Token created
+Auth --> Ctrl: Plaintext token once; user and expireTime
+Ctrl --> Client: 200 authentication response
+Client -> Client: Keep credential state in memory
+Client --> Staff: Display permitted workspace
+note over Auth, DB
+ Logical authentication responsibility; not a claimed extra deployed service.
+ Sanctum personal access token is opaque, not a signed JWT.
+ No token is created on failed authentication.
 end note
 @enduml

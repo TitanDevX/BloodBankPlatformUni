@@ -1,0 +1,53 @@
+@startuml SQ01E_View
+title SQ-01E Authorized staff views participating organizations\nFR-01 | UC-01.5 | Essential
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam ArrowFontSize 13
+skinparam noteFontSize 12
+skinparam dpi 140
+hide footbox
+skinparam maxMessageSize 240
+autonumber
+actor "Authorized Staff" as Staff
+boundary "React Client" as Client
+control "OrganizationQueryController" as Ctrl
+control "Organization Query / Policy" as Query
+database "Shared Database" as DB
+note over Staff, Client
+ Precondition: active authenticated staff;
+ current facility-visibility scope is known.
+end note
+Staff -> Client: Open blood bank list with permitted filters
+Client -> Ctrl: GET /v1/banks\nStatus/search and pagination
+Ctrl -> Query: Authorize current facility visibility
+break Missing authentication or forbidden scope
+ Query --> Ctrl: Denied
+ Ctrl --> Client: Access error
+ Client --> Staff: Show denial
+end
+Query --> Ctrl: Permitted scope
+Ctrl -> Query: Validate filters and pagination
+break Invalid query
+ Query --> Ctrl: Validation failure
+ Ctrl --> Client: Query errors
+ Client --> Staff: Correct query
+end
+Query -> DB: Query banks within permitted scope
+DB --> Query: Matching page or empty page
+Query -> Query: Project identifiers, names, contact and location
+Query --> Ctrl: Scoped summaries and pagination
+Ctrl --> Client: Return page
+alt Results exist
+ Client --> Staff: Display permitted bank summaries
+else Empty result
+ Client --> Staff: Display empty list (not an error)
+end
+note over Ctrl, DB
+ Read only; no staff, donor or clinical records.
+ Hospital list reuses this pattern with GET /v1/hospitals.
+ A separate detail invocation uses one resource identifier
+ and the same visibility policy; authorized absence is not found.
+end note
+@enduml

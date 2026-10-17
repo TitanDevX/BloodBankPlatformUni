@@ -1,0 +1,51 @@
+@startuml SQ02B_Logout
+title SQ-02B Staff member logs out\nFR-02 | UC-02.2 | Supporting
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam ArrowFontSize 13
+skinparam noteFontSize 12
+skinparam dpi 140
+hide footbox
+skinparam maxMessageSize 240
+autonumber
+actor "Staff Member" as Staff
+boundary "React Client" as Client
+control SessionController as Ctrl
+control "Authentication / Session Logic" as Session
+database "Token Store" as DB
+note over Staff, Client
+ Precondition: the request presents the current session token.
+end note
+Staff -> Client: Select Log Out
+Client -> Ctrl: DELETE /v1/sessions/current\nBearer current token
+Ctrl -> Session: Identify current token and user
+Session -> DB: Verify token hash, expiry and revocation
+DB --> Session: Token/user or invalid credentials
+break Missing, expired or revoked credentials
+ Session --> Ctrl: Unauthenticated
+ Ctrl --> Client: 401 UNAUTHENTICATED
+ Client -> Client: Clear local credential state
+ Client --> Staff: Show session-expired feedback
+end
+Session -> Session: Check current account activity
+break Inactive account
+ Session --> Ctrl: Account inactive
+ Ctrl --> Client: 403 PERMISSION_DENIED
+ Client -> Client: Clear local credential state
+ Client --> Staff: Show access feedback
+end
+Ctrl -> Session: Revoke presenting token only
+Session -> DB: Delete current token verifier
+DB --> Session: Revoked
+Session --> Ctrl: Revocation completed
+Ctrl --> Client: 200 empty body
+Client -> Client: Remove local credential state
+Client --> Staff: Display sign-in screen
+note over Client, DB
+ Network failure: local cleanup does not prove server revocation.
+ Do not recheck the password, issue a new token,
+ deactivate the account or delete historical records.
+end note
+@enduml

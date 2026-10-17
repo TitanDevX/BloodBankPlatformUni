@@ -1,0 +1,65 @@
+@startuml AD01C_Update
+title AD-01C Update organization details\nFR-01 | UC-01.3 | SQ-01C | Essential
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam ArrowFontSize 13
+skinparam noteFontSize 12
+skinparam dpi 140
+|Administrator|
+start
+:Choose Edit on an existing bank or\nhospital;
+note right
+ Precondition: an existing organization is selected.
+end note
+|Platform|
+:Authenticate active administrator\nand authorize selected organization;
+if (Access permitted?) then (yes)
+else (no)
+ :Return access denial;
+ stop
+endif
+:Load current organization details;
+if (Organization exists?) then (yes)
+else (no)
+ :Return not found;
+ stop
+endif
+:Display current details;
+repeat
+ |Administrator|
+ :Edit permitted name/contact/location\nfields;
+ if (Cancel changes?) then (yes)
+  :Close form; keep previous details;
+  stop
+ else (no)
+  :Submit changed fields and update mask;
+ endif
+ |Platform|
+ :Recheck current actor permission\nand selected organization scope;
+ if (Still permitted?) then (yes)
+ else (no)
+  :Deny update without changes;
+  stop
+ endif
+ :Recheck resource existence;
+ if (Still exists?) then (yes)
+ else (no)
+  :Return not found without changes;
+  stop
+ endif
+ :Validate mutable fields, mask, contact\nand active-coordinate constraints;
+backward:Return errors; retain previous details;
+repeat while (Invalid fields, mask or coordinates?) is (yes) not (no)
+:Save changes and old/new audit in one\ntransaction;
+:Preserve identifier, organization type and\nhistorical links;
+note right
+ No deactivation through a general detail update.
+ Historical issue/allocation facts are not recalculated.
+end note
+:Return updated details;
+|Administrator|
+:View saved organization details;
+stop
+@enduml

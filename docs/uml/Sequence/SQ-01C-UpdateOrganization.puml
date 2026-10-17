@@ -1,0 +1,59 @@
+@startuml SQ01C_Update
+title SQ-01C Administrator updates organization details\nFR-01 | UC-01.3 | Essential
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam ArrowFontSize 13
+skinparam noteFontSize 12
+skinparam dpi 140
+hide footbox
+skinparam maxMessageSize 240
+autonumber
+actor Administrator as Admin
+boundary "React Client" as Client
+control "BankController\n(hospital variant: HospitalController)" as Ctrl
+control "Authorization Policy" as Policy
+control "OrganizationService" as Svc
+database "Shared Database" as DB
+note over Admin, Client
+ Precondition: an existing bank is selected
+ and current details are loaded.
+ Hospital updates reuse this interaction with HospitalController.
+end note
+Admin -> Client: Save changed name/contact/location fields
+Client -> Ctrl: PATCH /v1/banks/{bank}\nChanged fields and updateMask
+Ctrl -> Policy: Authenticate and authorize administrator/scope
+break Missing authentication or denied permission/scope
+ Policy --> Ctrl: Denied
+ Ctrl --> Client: Access error
+ Client --> Admin: Show denial; no changes
+end
+Policy --> Ctrl: Permitted
+Ctrl -> Svc: Update selected organization
+Svc -> DB: Load selected organization
+DB --> Svc: Organization or absent
+break Authorized resource absent
+ Svc --> Ctrl: Not found
+ Ctrl --> Client: Not-found result
+ Client --> Admin: Show not found
+end
+Svc -> Svc: Validate mutable fields, mask, contact\nand active-coordinate constraints
+break Invalid coordinates, fields or immutable identity/type edit
+ Svc --> Ctrl: Validation failure
+ Ctrl --> Client: Field errors
+ Client --> Admin: Correct form; existing details unchanged
+end
+Svc -> DB: Begin transaction; save changes\nand old/new audit values
+DB --> Svc: Updated organization
+Svc -> DB: Commit
+Svc --> Ctrl: Updated details
+Ctrl --> Client: Return current organization details
+Client --> Admin: Display saved changes
+note over Svc, DB
+ Identifier and linked history remain stable.
+ No status deactivation or historical issue/allocation rewrite.
+ Hospital variant: PATCH /v1/hospitals/{hospital}.
+ Cancelling the form sends no update request.
+end note
+@enduml
