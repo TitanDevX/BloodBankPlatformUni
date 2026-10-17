@@ -1,0 +1,58 @@
+@startuml SQ01A_Create
+title SQ-01A Administrator registers a blood bank\nFR-01 | UC-01.1 | Essential
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam ArrowFontSize 13
+skinparam noteFontSize 12
+skinparam dpi 140
+hide footbox
+skinparam maxMessageSize 240
+autonumber
+actor Administrator as Admin
+participant "Create Bank Page" as Client
+participant "BankController" as Ctrl
+participant "Authorization Policy" as Policy
+participant "OrganizationService" as Svc
+database "Shared Database" as DB
+note over Client, Ctrl
+ HTTP contract: POST /v1/banks
+end note
+note over Admin, Client
+ Precondition: signed-in active administrator;
+ a new blood bank form is ready.
+end note
+Admin -> Client: submitBankDetails(bankData)
+Client -> Ctrl: createBank(bankData, idempotencyKey)
+Ctrl -> Policy: authorizeBankCreation(currentUser)
+break Missing authentication or denied permission
+ Policy --> Ctrl: accessDenied
+ Ctrl --> Client: accessError
+ Client --> Admin: showAccessDenied()
+end
+Policy --> Ctrl: permissionGranted
+Ctrl -> Svc: createBank(bankData, idempotencyKey)
+Svc -> Svc: validateBankDetails(bankData)
+break Invalid fields or coordinates
+ Svc --> Ctrl: validationErrors
+ Ctrl --> Client: validationErrors
+ Client --> Admin: showValidationErrors(validationErrors)
+end
+Svc -> DB: beginTransactionAndCheckReplay(idempotencyKey)
+alt Replay of the same completed creation
+ DB --> Svc: originalBank
+ Svc -> DB: completeReplayTransaction()
+else New creation
+ Svc -> DB: insertBankAndAudit(bankData, idempotencyKey)
+ DB --> Svc: createdBank
+ Svc -> DB: commit()
+end
+Svc --> Ctrl: bank
+Ctrl --> Client: bank
+Client --> Admin: showCreatedBank(bank)
+note over Svc, DB
+ One creation only; no edit or deactivation occurs here.
+ Invalid input or failed persistence leaves no partial creation.
+end note
+@enduml

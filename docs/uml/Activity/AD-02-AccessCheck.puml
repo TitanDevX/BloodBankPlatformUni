@@ -1,43 +1,70 @@
-@startuml AccessCheck_Activity
+@startuml AD02_Authorize
+title AD-02 Authorize one protected staff operation\nFR-02 | UC-02.3 / UC-02.4 | Essential
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam ArrowFontSize 13
+skinparam noteFontSize 12
+skinparam dpi 140
+|Client|
 start
-:User Requests Protected Route;
-if (Is Bearer Token Present?) then (yes)
-  :Validate Token Signature;
-  if (Is Token Valid & Unexpired?) then (yes)
-    :Fetch User Record;
-    if (Is User Active?) then (yes)
-      if (Does Role Match Allowed Roles?) then (yes)
-        if (Is Organization Scope Permitted?) then (yes)
-          if (Bank admin assigning a role?) then (yes)
-            if (Same bank, different user, allowed bank staff role?) then (yes)
-              :Grant Access to Role Change;
-              stop
-            else (no)
-              :Return 403 Forbidden Error;
-              stop
-            endif
-          else (no)
-            :Grant Access to Route / Resource;
-            stop
-          endif
-        else (no)
-          :Return 403 Wrong Organization Error;
-          stop
-        endif
-      else (no)
-        :Return 403 Forbidden Error;
-        stop
-      endif
-    else (no)
-      :Return 403 Account Inactive Error;
-      stop
-    endif
-  else (no)
-    :Return 401 Unauthorized Error;
-    stop
-  endif
+:Send one protected request\nwith target and authentication information;
+note right
+ Route/action and target scope are known.
+ Login and logout are separate scenarios.
+end note
+|Backend|
+:Verify configured opaque token\nagainst stored verifier, expiry and\nrevocation;
+if (Authentication valid?) then (yes)
 else (no)
-  :Redirect to /login;
-  stop
+ :Return 401 UNAUTHENTICATED;
+ stop
 endif
+:Load current user, role and organization\nscope;
+if (Account active?) then (yes)
+else (no)
+ :Return 403 PERMISSION_DENIED;
+ stop
+endif
+if (Role permits requested operation?) then (yes)
+else (no)
+ :Return 403 PERMISSION_DENIED;
+ stop
+endif
+if (Target organization scope permitted?) then (yes)
+else (no)
+ :Return 403 PERMISSION_DENIED;
+ stop
+endif
+if (Limited bank-admin role assignment?) then (yes)
+ :Check actor and target are different\nand have the same non-null bank_id;
+ if (Both user/bank guards satisfied?) then (yes)
+ else (no)
+  :Return 403; target unchanged;
+  stop
+ endif
+ :Check role-only payload and allowed target\nrole;
+ note right
+  bank_donor_collection
+  bank_inventory
+  bank_fulfillment
+  No organization/profile/status edits.
+ end note
+ if (Allowed role and no extra edits?) then (yes)
+ else (no)
+  :Return 403; target unchanged;
+  stop
+ endif
+else (no)
+endif
+:Execute only the authorized operation;
+note right
+ Role assignment uses lock/recheck/update/audit
+ as detailed in SQ-02C.
+end note
+:Return permitted result;
+|Client|
+:Handle API result;
+stop
 @enduml

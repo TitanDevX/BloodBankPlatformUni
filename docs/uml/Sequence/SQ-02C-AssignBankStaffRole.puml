@@ -1,0 +1,61 @@
+@startuml SQ02C_Assign
+title SQ-02C Bank administrator assigns an allowed staff role\nFR-02 | UC-02.4 | Essential
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam ArrowFontSize 13
+skinparam noteFontSize 12
+skinparam dpi 140
+hide footbox
+skinparam maxMessageSize 240
+autonumber
+actor "Bank Administrator" as Admin
+participant "Staff Role Assignment Page" as Client
+participant UserController as Ctrl
+participant "Assignment Policy / Service" as Policy
+database "Shared Database" as DB
+note over Client, Ctrl
+ HTTP contract: POST /v1/users/{user}:assignRole
+end note
+note over Admin, Client
+ Precondition: actor and selected colleague are different users
+ in the same non-null bank; both records already exist.
+end note
+Admin -> Client: submitRoleChange(targetUserId, role)
+Client -> Ctrl: assignRole(targetUserId, role)
+Ctrl -> Policy: authorizeBankRoleAssignment(currentUser)
+break Unauthenticated or unauthorized actor
+ Policy --> Ctrl: accessDenied
+ Ctrl --> Client: accessError
+ Client --> Admin: showAccessDenied()
+end
+Ctrl -> Policy: validateRoleAssignment(targetUserId, role)
+Policy -> DB: loadTargetAndCurrentBankScope(targetUserId, currentUser)
+DB --> Policy: targetAndBankScope
+Policy -> Policy: checkSameBankDifferentUserAndAllowedRole(currentUser, target, role)
+break Cross-bank, self-change, prohibited role or extra edits
+ Policy --> Ctrl: permissionDenied
+ Ctrl --> Client: permissionDenied
+ Client --> Admin: showAccessDenied()
+end
+Policy -> DB: beginTransactionLockTargetAndRecheckScope(currentUser, target)
+DB --> Policy: lockedAssignment
+break Guard no longer holds
+ Policy -> DB: rollBack()
+ Policy --> Ctrl: permissionDenied
+ Ctrl --> Client: permissionDenied
+ Client --> Admin: showAccessDenied()
+end
+Policy -> DB: updateRoleAndAudit(target, role)
+DB --> Policy: updatedTarget
+Policy -> DB: commit()
+Policy --> Ctrl: safeUserSummary
+Ctrl --> Client: safeUserSummary
+Client --> Admin: showAssignedRole(safeUserSummary)
+note over Policy, DB
+ Allowed: bank_donor_collection, bank_inventory, bank_fulfillment.
+ Target organization, profile and active status remain unchanged.
+ General administrator assignment is a separate FR-17 scenario.
+end note
+@enduml

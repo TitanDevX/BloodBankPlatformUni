@@ -1,0 +1,56 @@
+@startuml SQ01E_View
+title SQ-01E Authorized staff views participating organizations\nFR-01 | UC-01.5 | Essential
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam ArrowFontSize 13
+skinparam noteFontSize 12
+skinparam dpi 140
+hide footbox
+skinparam maxMessageSize 240
+autonumber
+actor "Authorized Staff" as Staff
+participant "Organizations Page" as Client
+participant "OrganizationQueryController" as Ctrl
+participant "Organization Query / Policy" as Query
+database "Shared Database" as DB
+note over Client, Ctrl
+ HTTP contract: GET /v1/banks
+end note
+note over Staff, Client
+ Precondition: active authenticated staff;
+ current facility-visibility scope is known.
+end note
+Staff -> Client: openOrganizations(filters, pageToken)
+Client -> Ctrl: listBanks(filters, pageToken)
+Ctrl -> Query: authorizeFacilityVisibility(currentUser)
+break Missing authentication or forbidden scope
+ Query --> Ctrl: accessDenied
+ Ctrl --> Client: accessError
+ Client --> Staff: showAccessDenied()
+end
+Query --> Ctrl: permittedScope
+Ctrl -> Query: validateOrganizationQuery(filters, pageToken)
+break Invalid query
+ Query --> Ctrl: validationErrors
+ Ctrl --> Client: validationErrors
+ Client --> Staff: showQueryErrors(validationErrors)
+end
+Query -> DB: findScopedBanks(permittedScope, filters, pageToken)
+DB --> Query: bankPage
+Query -> Query: projectPermittedFacilityFields(bankPage)
+Query --> Ctrl: organizationPage
+Ctrl --> Client: organizationPage
+alt Results exist
+ Client --> Staff: showOrganizations(organizationPage)
+else Empty result
+ Client --> Staff: showEmptyState()
+end
+note over Ctrl, DB
+ Read only; no staff, donor or clinical records.
+ Hospital list reuses this pattern with GET /v1/hospitals.
+ A separate detail invocation uses one resource identifier
+ and the same visibility policy; authorized absence is not found.
+end note
+@enduml
