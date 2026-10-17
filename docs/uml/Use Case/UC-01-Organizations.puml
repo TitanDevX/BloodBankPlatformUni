@@ -1,23 +1,28 @@
-@startuml
+@startuml FR01_Organizations_UseCase
+title FR-01 - Multi Bank and Hospital Platform
 left to right direction
 skinparam packageStyle rectangle
-
 actor "Administrator" as Admin
-actor "Staff Member" as Staff
-
-rectangle "FR-01: Multi Bank & Hospital Platform" {
-    usecase "Create Bank" as UC1
-    usecase "Create Hospital" as UC2
-    usecase "Edit Organization" as UC3
-    usecase "Deactivate Organization" as UC4
-    usecase "View Organizations" as UC5
+actor "Authorized Staff Member" as Staff
+rectangle "Blood Bank Platform - Organizations" {
+  usecase "UC-01.1\nCreate Bank" as CreateBank
+  usecase "UC-01.2\nCreate Hospital" as CreateHospital
+  usecase "UC-01.3\nEdit Organization" as Edit
+  usecase "UC-01.4\nDeactivate Organization" as Deactivate
+  usecase "UC-01.5\nView Organizations" as View
 }
-
-Admin --> UC1
-Admin --> UC2
-Admin --> UC3
-Admin --> UC4
-Admin --> UC5
-
-Staff --> UC5
+Admin --> CreateBank
+Admin --> CreateHospital
+Admin --> Edit
+Admin --> Deactivate
+Admin --> View
+Staff --> View
+note bottom of Deactivate
+  Set the organization to inactive.
+  Preserve linked history and referenced records.
+end note
+note bottom of View
+  Staff may view permitted organization details.
+  FR-02 governs authentication, permissions and scope.
+end note
 @enduml

@@ -1,0 +1,55 @@
+@startuml FR02_Access_Sequence
+title FR-02 / UC-02.3 and UC-02.4 - Protected Access and Bank Role Assignment
+autonumber
+actor "Staff Member / Bank Administrator" as Staff
+boundary "Client" as Client
+control "Authentication Middleware" as Auth
+control "Record Policy" as Policy
+control "Business Controller" as Ctrl
+database "Database" as DB
+Staff -> Client: Request protected operation
+Client -> Auth: Submit request with authentication information
+Auth -> Auth: Verify session/token and account activity
+alt Unauthenticated or inactive account
+  Auth --> Client: Deny access
+  Client --> Staff: Display access denial
+else Authenticated active user
+  Auth -> Policy: Authorize operation and relevant record
+  Policy -> Policy: Check role permission and organization scope
+  alt Role lacks permission or scope is disallowed
+    Policy --> Auth: Deny access
+    Auth --> Client: Access denied
+    Client --> Staff: Display access denial
+  else Role and organization scope permitted
+    alt UC-02.4 - Bank Administrator assigning a role
+      Policy -> DB: Read target user's bank_id
+      DB --> Policy: Target bank_id
+      Policy -> Policy: Check equal non-null bank_id values
+      Policy -> Policy: Check requested role against three permitted roles
+      alt Different/null bank_id or disallowed target role
+        Policy --> Auth: Deny role change
+        Auth --> Client: Role change denied
+        Client --> Staff: Display denial; target role unchanged
+      else Same bank and permitted target role
+        Policy -> Ctrl: Permit role assignment
+        Ctrl -> DB: Assign requested role to target user
+        DB --> Ctrl: Role assigned
+        Ctrl --> Client: Assignment result
+        Client --> Staff: Display successful assignment
+      end
+    else UC-02.3 - Other protected operation
+      Policy -> Ctrl: Permit operation
+      Ctrl -> Ctrl: Execute permitted operation
+      Ctrl --> Client: Operation result
+      Client --> Staff: Display result
+    end
+  end
+end
+note over Policy
+  Permitted target roles:
+  bank_donor_collection
+  bank_inventory
+  bank_fulfillment
+  Deny cross-bank changes and all other target roles.
+end note
+@enduml

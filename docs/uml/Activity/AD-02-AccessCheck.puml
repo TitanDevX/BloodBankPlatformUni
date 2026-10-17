@@ -1,43 +1,75 @@
-@startuml AccessCheck_Activity
+@startuml FR02_Identity_Activity
+title FR-02 - Authentication and Role Access
 start
-:User Requests Protected Route;
-if (Is Bearer Token Present?) then (yes)
-  :Validate Token Signature;
-  if (Is Token Valid & Unexpired?) then (yes)
-    :Fetch User Record;
-    if (Is User Active?) then (yes)
-      if (Does Role Match Allowed Roles?) then (yes)
-        if (Is Organization Scope Permitted?) then (yes)
-          if (Bank admin assigning a role?) then (yes)
-            if (Same bank, different user, allowed bank staff role?) then (yes)
-              :Grant Access to Role Change;
-              stop
-            else (no)
-              :Return 403 Forbidden Error;
-              stop
-            endif
-          else (no)
-            :Grant Access to Route / Resource;
-            stop
-          endif
-        else (no)
-          :Return 403 Wrong Organization Error;
-          stop
-        endif
+if (Requested use case?) then (Log In - UC-02.1)
+  :Enter and submit credentials;
+  :Verify credentials against stored password hash;
+  if (Credentials valid?) then (yes)
+    if (Account active?) then (yes)
+      :Authenticate user;
+      :Establish session or token;
+    else (no)
+      :Reject login;
+    endif
+  else (no)
+    :Reject login;
+  endif
+else (Log Out or Protected Operation)
+  if (Log Out - UC-02.2?) then (yes)
+    :Request logout using current session or token;
+    :Invalidate current session or token;
+    note right
+      Precondition: A current session or token exists.
+    end note
+  else (Protected Operation - UC-02.3 / UC-02.4)
+    :Request protected operation;
+    :Check authentication;
+    if (Authenticated?) then (yes)
+    else (no)
+      :Deny operation;
+      stop
+    endif
+    if (Account active?) then (yes)
+    else (no)
+      :Deny access;
+      stop
+    endif
+    if (Role permits operation?) then (yes)
+    else (no)
+      :Deny operation;
+      stop
+    endif
+    if (Record organization scope permitted?) then (yes)
+    else (no)
+      :Deny operation;
+      stop
+    endif
+    if (Bank Administrator assigning a role?) then (yes)
+      :Check acting and target users' bank_id values;
+      if (Same non-null bank_id?) then (yes)
       else (no)
-        :Return 403 Forbidden Error;
+        :Deny role change;
+        :Leave target role unchanged;
+        stop
+      endif
+      :Check requested target role;
+      note right
+        Permitted roles:
+        bank_donor_collection
+        bank_inventory
+        bank_fulfillment
+      end note
+      if (One of the three permitted roles?) then (yes)
+        :Assign requested role;
+      else (no)
+        :Deny role change;
+        :Leave target role unchanged;
         stop
       endif
     else (no)
-      :Return 403 Account Inactive Error;
-      stop
+      :Execute permitted operation;
     endif
-  else (no)
-    :Return 401 Unauthorized Error;
-    stop
   endif
-else (no)
-  :Redirect to /login;
-  stop
 endif
+stop
 @enduml

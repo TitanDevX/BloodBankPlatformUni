@@ -1,0 +1,18 @@
+@startuml FR02_Logout_Sequence
+title FR-02 / UC-02.2 - Log Out
+autonumber
+actor "Logged-in Staff Member" as Staff
+boundary "Client" as Client
+control "AuthController" as Ctrl
+control "AuthService" as Svc
+note over Staff, Svc
+  Precondition: The user has a current session or token.
+end note
+Staff -> Client: Request logout
+Client -> Ctrl: Submit logout request with current session/token
+Ctrl -> Svc: Invalidate current session or token
+Svc -> Svc: Invalidate current session or token
+Svc --> Ctrl: Current session/token invalidated
+Ctrl --> Client: Logout completed
+Client --> Staff: Logout completed
+@enduml

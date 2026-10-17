@@ -1,34 +1,53 @@
-@startuml
+@startuml FR01_Organizations_Sequence
+title FR-01 - Maintain and View Organizations
 autonumber
-
-actor Administrator as Admin
-participant "OrganizationController" as Ctrl
-participant "OrganizationService" as Svc
+actor "Administrator / Authorized Staff" as Actor
+boundary "Client" as Client
+control "OrganizationController" as Ctrl
+control "OrganizationService" as Svc
 database "Database" as DB
-
-Admin -> Ctrl: Submit organization data (Bank/Hospital)
-activate Ctrl
-
-Ctrl -> Svc: validateAndSave(data)
-activate Svc
-
-Svc -> DB: Check existing identifiers & validity
-activate DB
-DB --> Svc: Return validation result
-deactivate DB
-
-alt Valid Data
-    Svc -> DB: Save organization record
-    activate DB
-    DB --> Svc: Return saved record ID
-    deactivate DB
-    Svc --> Ctrl: Success response with identifier
-    Ctrl --> Admin: Show success details
-else Duplicate or Invalid Data
-    Svc --> Ctrl: Validation/Duplicate error
-    Ctrl --> Admin: Return error message
+Actor -> Client: Select operation; enter relevant data or changes
+Client -> Ctrl: Submit operation and organization/data
+Ctrl -> Ctrl: Check authentication, permission and scope
+alt Access denied
+  Ctrl --> Client: Deny access
+  Client --> Actor: Display access denial
+else Access permitted
+  alt UC-01.5 - View Organizations
+    Ctrl -> Svc: Request permitted organizations or details
+    Svc -> DB: Retrieve permitted organizations or details
+    DB --> Svc: Organization data
+    Svc --> Ctrl: Permitted organization data
+    Ctrl --> Client: Return organization data
+    Client --> Actor: Display organizations or details
+  else UC-01.4 - Deactivate Organization (Administrator)
+    Ctrl -> Svc: Deactivate selected organization
+    Svc -> DB: Set active = false; preserve referenced records
+    DB --> Svc: Updated organization
+    Svc --> Ctrl: Organization details
+    Ctrl --> Client: Return organization details
+    Client --> Actor: Display inactive organization
+  else UC-01.1 / UC-01.2 / UC-01.3 - Create or Edit (Administrator)
+    Ctrl -> Svc: Validate bank/hospital data or changes
+    Svc -> Svc: Validate details and required coordinates
+    Svc -> DB: Check for duplicate data
+    DB --> Svc: Duplicate-check result
+    alt Invalid or duplicate data
+      Svc --> Ctrl: Validation or duplicate error
+      Ctrl --> Client: Return error
+      Client --> Actor: Return to form for correction
+    else Valid data
+      Svc -> DB: Save bank/hospital record or changes
+      DB --> Svc: Organization identifier and details
+      Svc --> Ctrl: Saved organization
+      Ctrl --> Client: Return identifier and details
+      Client --> Actor: Display organization details
+    end
+  end
 end
-
-deactivate Svc
-deactivate Ctrl
+note over Svc, DB
+  Active banks and requesting hospitals require
+  validated latitude and longitude.
+  Editing and deactivation preserve linked history.
+end note
 @enduml
