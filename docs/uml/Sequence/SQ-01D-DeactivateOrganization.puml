@@ -1,0 +1,65 @@
+@startuml SQ01D_Deactivate
+title SQ-01D Administrator deactivates an organization\nFR-01 | UC-01.4 | Essential
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam ArrowFontSize 13
+skinparam noteFontSize 12
+skinparam dpi 140
+hide footbox
+skinparam maxMessageSize 240
+autonumber
+actor Administrator as Admin
+participant "Organization Details Page" as Client
+participant "BankController\n(hospital variant: HospitalController)" as Ctrl
+participant "Authorization Policy" as Policy
+participant "OrganizationService" as Svc
+database "Shared Database" as DB
+note over Client, Ctrl
+ HTTP contract: POST /v1/banks/{bank}:deactivate
+end note
+note over Admin, Client
+ Precondition: one existing permitted bank is selected.
+ The administrator has reviewed deactivation impact.
+end note
+Admin -> Client: confirmDeactivation(organizationId, reason)
+Client -> Ctrl: deactivateOrganization(organizationId, reason, idempotencyKey)
+Ctrl -> Policy: authorizeOrganizationDeactivation(currentUser, organizationId)
+break Unauthenticated or forbidden role/scope
+ Policy --> Ctrl: accessDenied
+ Ctrl --> Client: accessError
+ Client --> Admin: showAccessDenied()
+end
+Policy --> Ctrl: permissionGranted
+Ctrl -> Svc: deactivateOrganization(organizationId, reason, idempotencyKey)
+Svc -> Svc: validateDeactivationInput(reason, idempotencyKey)
+break Invalid command input
+ Svc --> Ctrl: validationErrors
+ Ctrl --> Client: validationErrors
+ Client --> Admin: showValidationErrors(validationErrors)
+end
+Svc -> DB: beginTransactionAndLockOrganization(organizationId)
+DB --> Svc: organizationOrNull
+break Authorized organization absent
+ Svc -> DB: rollBack()
+ Svc --> Ctrl: notFound
+ Ctrl --> Client: notFound
+ Client --> Admin: showNotFound()
+end
+alt Already inactive or completed replay
+ Svc -> Svc: retainInactiveOrganization(organization)
+else Active organization
+ Svc -> DB: deactivateAndAudit(organization, reason)
+ DB --> Svc: inactiveOrganization
+end
+Svc -> DB: commit()
+Svc --> Ctrl: inactiveOrganization
+Ctrl --> Client: inactiveOrganization
+Client --> Admin: showDeactivatedOrganization(inactiveOrganization)
+note over Svc, DB
+ No creation, bulk cancellation or stock/request rewrite.
+ Relevant new operations must respect inactive status.
+ Hospital variant: /v1/hospitals/{hospital}:deactivate.
+end note
+@enduml
