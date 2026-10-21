@@ -1,7 +1,0 @@
-flowchart LR
-  U[Staff browser] --> R[React frontend]
-  R -->|HTTPS JSON| L[Laravel modular monolith]
-  L -->|Queries and transactions| D[(Relational database)]
-  L -->|HTTP JSON prepared demand history| P[Python forecasting service]
-  P --> M[Saved model]
-  P -->|Predictions| L
