@@ -1,0 +1,304 @@
+erDiagram
+    %% Proposed logical ERD for the workflows in docs/ only (FR-01 through FR-24).
+    %% Keys and fields below are design choices needed to represent those workflows.
+
+    blood_banks {
+        bigint id PK
+        string name
+        string address
+        decimal latitude
+        decimal longitude
+        string contact_phone
+        boolean active
+    }
+
+    hospitals {
+        bigint id PK
+        string name
+        string address
+        decimal latitude
+        decimal longitude
+        string contact_phone
+        boolean active
+    }
+
+    staff_users {
+        bigint id PK
+        string full_name
+        string email UK
+        string password_hash
+        boolean active
+        datetime created_at
+    }
+
+    roles {
+        bigint id PK
+        string code UK
+        string name
+        string scope
+    }
+
+    staff_assignments {
+        bigint id PK
+        bigint staff_user_id FK
+        bigint role_id FK
+        string scope
+        bigint? blood_bank_id FK
+        bigint? hospital_id FK
+        bigint assigned_by_user_id FK
+        datetime assigned_at
+        bigint? removed_by_user_id FK
+        datetime? removed_at
+    }
+
+    donors {
+        bigint id PK
+        string donor_reference UK
+        string full_name
+        date date_of_birth
+        string phone
+        string address
+        datetime created_at
+    }
+
+    donation_attempts {
+        bigint id PK
+        string attempt_reference UK
+        bigint donor_id FK
+        bigint blood_bank_id FK
+        bigint registered_by_user_id FK
+        string status
+        datetime registered_at
+    }
+
+    donor_assessments {
+        bigint id PK
+        bigint donation_attempt_id FK,UK
+        decimal weight_kg
+        decimal hemoglobin_g_dl
+        int systolic_bp_mmhg
+        int diastolic_bp_mmhg
+        int pulse_bpm
+        decimal temperature_c
+        bigint recorded_by_user_id FK
+        datetime recorded_at
+    }
+
+    eligibility_decisions {
+        bigint id PK
+        bigint donor_assessment_id FK,UK
+        bigint decided_by_user_id FK
+        string decision
+        string? deferral_type
+        string? deferral_reason
+        date? deferral_until
+        datetime decided_at
+    }
+
+    blood_collections {
+        bigint id PK
+        bigint donation_attempt_id FK,UK
+        string? whole_blood_bag_reference UK
+        bigint? started_by_user_id FK
+        datetime? started_at
+        bigint? finished_by_user_id FK
+        datetime? finished_at
+        string? outcome
+        decimal? collected_volume_ml
+        string? unsuccessful_reason
+        datetime? quarantined_at
+    }
+
+    component_units {
+        bigint id PK
+        string unit_reference UK
+        bigint blood_collection_id FK
+        bigint processed_by_user_id FK
+        string component_type
+        decimal volume_ml
+        string processing_decision
+        datetime processed_at
+    }
+
+    blood_group_verifications {
+        bigint id PK
+        bigint donation_attempt_id FK,UK
+        string abo_group
+        string rh_factor
+        bigint verified_by_user_id FK
+        datetime verified_at
+    }
+
+    laboratory_screenings {
+        bigint id PK
+        bigint donation_attempt_id FK,UK
+        bigint? finalized_by_user_id FK
+        string? outcome
+        boolean requires_follow_up
+        string? follow_up_reason
+        datetime? finalized_at
+    }
+
+    laboratory_test_results {
+        bigint id PK
+        bigint laboratory_screening_id FK
+        bigint recorded_by_user_id FK
+        string test_name
+        string result
+        datetime recorded_at
+    }
+
+    inventory_units {
+        bigint id PK
+        bigint component_unit_id FK,UK
+        bigint blood_bank_id FK
+        string component_type
+        string abo_group
+        string rh_factor
+        string status
+        datetime? expires_at
+        datetime? released_at
+        datetime? reserved_at
+    }
+
+    patients {
+        bigint hospital_id PK,FK
+        string patient_reference PK
+    }
+
+    hospital_requests {
+        bigint id PK
+        string request_reference UK
+        bigint hospital_id FK
+        string patient_reference FK
+        bigint submitted_by_user_id FK
+        string component_type
+        string abo_group
+        string rh_factor
+        int quantity_units
+        datetime needed_by_at "Date and time the components are needed"
+        string urgency "Routine, urgent, or emergency"
+        string delivery_location "Hospital ward or location receiving them"
+        string requester_contact "Number staff can call about this request"
+        string status
+        datetime submitted_at
+        bigint? accepted_bank_id FK
+        bigint? accepted_by_user_id FK
+        datetime? accepted_at
+    }
+
+    request_allocations {
+        bigint id PK
+        bigint hospital_request_id FK
+        bigint inventory_unit_id FK,UK
+        bigint blood_bank_id FK
+        datetime allocated_at
+    }
+
+    disposal_notifications {
+        bigint id PK
+        bigint inventory_unit_id FK
+        bigint recipient_user_id FK
+        string reason
+        datetime created_at
+        datetime read_at
+    }
+
+    component_disposals {
+        bigint id PK
+        bigint inventory_unit_id FK,UK
+        bigint disposed_by_user_id FK
+        string reason
+        datetime disposed_at
+    }
+
+    demand_forecasts {
+        bigint id PK
+        bigint blood_bank_id FK
+        bigint generated_by_user_id FK
+        string component_type
+        string abo_group
+        string rh_factor
+        date period_start
+        date period_end
+        decimal predicted_units
+        string method
+        string method_version
+        datetime data_cutoff_at
+        datetime generated_at
+    }
+
+    staff_users ||--o{ staff_assignments : receives
+    roles ||--o{ staff_assignments : defines
+    blood_banks |o--o{ staff_assignments : employs
+    hospitals |o--o{ staff_assignments : employs
+    staff_users ||--o{ staff_assignments : assigns
+    staff_users |o--o{ staff_assignments : removes
+
+    donors ||--o{ donation_attempts : makes
+    blood_banks ||--o{ donation_attempts : receives
+    staff_users ||--o{ donation_attempts : registers
+    donation_attempts ||--o| donor_assessments : assessed_in
+    staff_users ||--o{ donor_assessments : records
+    donor_assessments ||--o| eligibility_decisions : informs
+    staff_users ||--o{ eligibility_decisions : decides
+    donation_attempts ||--o| blood_collections : proceeds_to
+    staff_users ||--o{ blood_collections : starts
+    staff_users |o--o{ blood_collections : finishes
+    blood_collections ||--o{ component_units : produces
+    staff_users ||--o{ component_units : processes
+    donation_attempts ||--o| blood_group_verifications : typed_in
+    staff_users ||--o{ blood_group_verifications : verifies
+    donation_attempts ||--o| laboratory_screenings : screened_by
+    staff_users |o--o{ laboratory_screenings : finalizes
+    laboratory_screenings ||--o{ laboratory_test_results : contains
+    staff_users ||--o{ laboratory_test_results : records
+
+    component_units ||--o| inventory_units : tracked_as
+    blood_banks ||--o{ inventory_units : holds
+    hospitals ||--o{ patients : identifies
+    hospitals ||--o{ hospital_requests : submits
+    patients ||--o{ hospital_requests : needs
+    staff_users ||--o{ hospital_requests : submits
+    staff_users |o--o{ hospital_requests : accepts
+    blood_banks |o--o{ hospital_requests : fulfills
+    hospital_requests ||--o{ request_allocations : reserves
+    inventory_units ||--o| request_allocations : allocated_to
+    blood_banks ||--o{ request_allocations : supplies
+    inventory_units ||--o{ disposal_notifications : triggers
+    staff_users ||--o{ disposal_notifications : receives
+    inventory_units ||--o| component_disposals : disposed_as
+    staff_users ||--o{ component_disposals : performs
+
+    blood_banks ||--o{ demand_forecasts : plans
+    staff_users ||--o{ demand_forecasts : generates
+
+    %% Exactly one organization is set per active staff assignment, except system roles.
+    %% A removed assignment no longer grants bank or hospital access.
+    %% Queues are worklists derived from donation_attempts.status; no claim operation is modeled.
+    %% Deferral type is temporary or permanent; temporary requires deferral_until.
+    %% FR-14 start recording is optional, so started_by_user_id and started_at are nullable.
+    %% The optional visit-ticket barcode encodes donation_attempts.attempt_reference.
+    %% The bag reference links to the collection; sample labels encode attempt_reference.
+    %% Unsuccessful collection has no bag reference, quarantine, components, or lab work.
+    %% Blood-group verification is recorded before and separately from final screening.
+    %% Each laboratory test result belongs to the donation through its screening.
+    %% Laboratory finalization requires verified ABO/Rh and required test results.
+    %% Before ABO/Rh verification, component_units records processing acceptance or
+    %% rejection; rejected components are unavailable without an inventory row.
+    %% Create one inventory row only after the component and its donation's verified
+    %% ABO/Rh both exist. Copy verified ABO/Rh and the donation's bank ID; verify
+    %% both sources belong to the same donation in the creation transaction.
+    %% Initially set inventory status to Quarantine for accepted processing or
+    %% Rejected for rejected processing. ABO/Rh remains required in inventory.
+    %% On final screening, only processing-accepted, lab-cleared units become
+    %% Available; all others remain unavailable.
+    %% A component whose ABO/Rh can never be verified needs a separate disposition
+    %% path because component_disposals currently references inventory_units only.
+    %% The nearest complete exact-match bank is calculated from current stock and location.
+    %% A displayed match is advisory; acceptance atomically reserves quantity_units
+    %% from one bank using available, unexpired units of the exact component and ABO/Rh.
+    %% Disposal notices cover expired or rejected units and are distinct from physical disposal.
+    %% Patients use the composite key (hospital_id, patient_reference).
+    %% Requests reference that composite patient key within their own hospital.
+    %% Allocation bank_id must equal the accepted request bank and the inventory unit bank.
