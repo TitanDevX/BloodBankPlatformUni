@@ -1,0 +1,138 @@
+%%{init: {"look":"classic","layout":"elk","theme":"base","fontSize":28,"fontFamily":"Arial Narrow","htmlLabels":false,"markdownAutoWrap":false,"themeCSS":".edgeTerminals{font-size:28px!important}","themeVariables":{"fontFamily":"Arial Narrow","fontSize":"28px","primaryColor":"#ffffff","primaryTextColor":"#111111","primaryBorderColor":"#333333","lineColor":"#333333"},"class":{"nodeSpacing":12,"rankSpacing":18,"padding":8,"diagramPadding":4},"elk":{"mergeEdges":false,"nodePlacementStrategy":"NETWORK_SIMPLEX","cycleBreakingStrategy":"GREEDY","forceNodeModelOrder":false}}}%%
+classDiagram
+    direction LR
+
+    class component_disposals {
+        -reason
+        -disposed_at
+        +record()
+    }
+    class requests {
+        -patient_reference
+        -component_type
+        -quantity_units
+        -status
+        +accept()
+        +reject()
+    }
+    class donations {
+        -donation_reference
+        -status
+        +register()
+        +print_ticket()
+    }
+    class donor_profiles {
+        -full_name
+        -phone
+        +update_profile()
+    }
+    class blood_units {
+        -volume_ml
+        -collection_status
+        -separation_outcome
+        +finish_collection()
+        +record_separation()
+    }
+    class hospitals {
+        -display_name
+        -address
+        +submit_request()
+    }
+    class lab_test_results {
+        -status
+        -requires_follow_up
+        +finalize()
+    }
+    class blood_components {
+        -component_type
+        -expires_at
+        -status
+        +is_available()
+    }
+    class roles {
+        -code
+        -scope
+        +is_in_scope()
+    }
+    class staff_assignments {
+        -scope
+        -removed_at
+        +assign()
+        +remove()
+    }
+    class request_allocations {
+        -allocated_at
+        +reserve()
+    }
+    class assessment_results {
+        -final_decision
+        -deferral_reason
+        +record_decision()
+    }
+    class blood_banks {
+        -display_name
+        -latitude
+        -longitude
+        +can_supply()
+    }
+    class staff_accounts {
+        -name
+        -email
+        +authenticate()
+    }
+
+    request_allocations "0..1" -- "1" blood_components
+    assessment_results "0..*" -- "1" staff_accounts
+    staff_accounts "1" -- "0..*" staff_assignments
+    blood_components "0..*" -- "1" donations
+    donations "1" -- "0..1" lab_test_results
+    staff_assignments "0..*" -- "0..1" blood_banks
+    donor_profiles "1" -- "0..*" donations
+    requests "0..*" -- "0..1" blood_banks
+    request_allocations "0..*" -- "1" requests
+    blood_components "1" -- "0..1" component_disposals
+    donations "0..*" -- "1" staff_accounts
+    donations "0..*" -- "1" blood_banks
+    lab_test_results "0..*" -- "1" staff_accounts
+    hospitals "0..1" -- "0..*" staff_assignments
+    requests "0..*" -- "1" hospitals
+    roles "1" -- "0..*" staff_assignments
+    donations "1" -- "0..1" blood_units
+    requests "0..*" -- "1" staff_accounts
+    donations "1" -- "0..1" assessment_results
+    blood_units "0..*" -- "1" staff_accounts
+    blood_components "0..*" -- "1" blood_units
+    component_disposals "0..*" -- "1" staff_accounts
+
+    %% Association meanings from docs/ER/code/erd-low-level.mmd:
+    %% hospitals -- requests: creates
+    %% blood_banks -- requests: accepts
+    %% staff_accounts -- requests: submits
+    %% requests -- request_allocations: has
+    %% blood_components -- request_allocations: assigned_to
+    %% donor_profiles -- donations: makes
+    %% blood_banks -- donations: receives
+    %% staff_accounts -- donations: registers
+    %% donations -- assessment_results: has_assessment
+    %% staff_accounts -- assessment_results: records
+    %% donations -- blood_units: collected_as
+    %% staff_accounts -- blood_units: collects_and_separates
+    %% donations -- lab_test_results: tested_by
+    %% staff_accounts -- lab_test_results: records
+    %% blood_units -- blood_components: separates_into
+    %% donations -- blood_components: traces
+    %% blood_components -- component_disposals: disposed_as
+    %% staff_accounts -- component_disposals: records
+    %% staff_accounts -- staff_assignments: holds
+    %% roles -- staff_assignments: grants
+    %% blood_banks -- staff_assignments: scopes
+    %% hospitals -- staff_assignments: scopes
+
+    %% Names are identical to ERD entity/attribute identifiers.
+    %% Overview: selected members; UML attribute/return types are suppressed.
+    %% All ERD attributes and types appear in class-diagram-detailed.mmd.
+    %% requests has an optional ACCEPTING bank, not an addressed/matched bank.
+    %% Acceptance reserves the full exact-match quantity from that bank atomically.
+    %% Assignment scope follows roles.scope: one bank OR one hospital OR neither for system roles.
+    %% Components trace directly to donations and also through blood_units.
+    %% Staff actor roles and optional audit actor FKs follow the ERD.

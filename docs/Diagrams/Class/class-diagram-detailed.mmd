@@ -1,0 +1,290 @@
+%%{init: {"look":"classic","layout":"elk","theme":"base","fontSize":18,"fontFamily":"Arial Narrow","htmlLabels":false,"markdownAutoWrap":false,"themeCSS":".edgeTerminals{font-size:18px!important}","themeVariables":{"fontFamily":"Arial Narrow","fontSize":"18px","primaryColor":"#ffffff","primaryTextColor":"#111111","primaryBorderColor":"#333333","lineColor":"#333333"},"class":{"nodeSpacing":12,"rankSpacing":18,"padding":8,"diagramPadding":4},"elk":{"mergeEdges":false,"nodePlacementStrategy":"NETWORK_SIMPLEX","cycleBreakingStrategy":"GREEDY","forceNodeModelOrder":false}}}%%
+classDiagram
+    direction LR
+
+    class requests {
+        -id: bigint
+        -request_reference: string
+        -hospital_id: bigint
+        -patient_reference: string
+        -submitted_by_staff_id: bigint
+        -component_type: string
+        -abo_group: string
+        -rh_factor: string
+        -quantity_units: int
+        -needed_by_at: datetime
+        -urgency: string
+        -delivery_location: string
+        -requester_contact: string
+        -status: string
+        -submitted_at: datetime
+        -accepted_bank_id: bigint
+        -accepted_by_staff_id: bigint
+        -accepted_at: datetime
+        +accept() void
+        +reject() void
+    }
+    class hospitals {
+        -id: bigint
+        -public_id: string
+        -display_name: string
+        -address: string
+        -contact_phone: string
+        -contact_email: string
+        -latitude: decimal
+        -longitude: decimal
+        -active: boolean
+        +submit_request() void
+    }
+    class blood_units {
+        -id: bigint
+        -donation_id: bigint
+        -bag_reference: string
+        -volume_ml: decimal
+        -collection_status: string
+        -collection_fail_reason: string
+        -started_by_staff_id: bigint
+        -started_at: datetime
+        -completed_by_staff_id: bigint
+        -completed_at: datetime
+        -quarantined_at: datetime
+        -separation_outcome: string
+        -separation_failure_reason: string
+        -separated_by_staff_id: bigint
+        -separated_at: datetime
+        +start_collection() void
+        +finish_collection() void
+        +record_separation() void
+    }
+    class request_allocations {
+        -id: bigint
+        -request_id: bigint
+        -blood_component_id: bigint
+        -allocated_at: datetime
+        +reserve() void
+    }
+    class component_disposals {
+        -id: bigint
+        -blood_component_id: bigint
+        -disposed_by_staff_id: bigint
+        -reason: string
+        -disposed_at: datetime
+        +record() void
+    }
+    class blood_components {
+        -id: bigint
+        -component_reference: string
+        -donation_id: bigint
+        -blood_unit_id: bigint
+        -component_type: string
+        -volume_ml: decimal
+        -abo_group: string
+        -rh_factor: string
+        -expires_at: datetime
+        -processing_decision: string
+        -processed_at: datetime
+        -status: string
+        -created_at: datetime
+        -released_at: datetime
+        +is_available() boolean
+    }
+    class donor_profiles {
+        -id: bigint
+        -donor_reference: string
+        -full_name: string
+        -date_of_birth: date
+        -national_id: string
+        -phone: string
+        -address: string
+        -created_at: datetime
+        +update_profile() void
+    }
+    class staff_accounts {
+        -id: bigint
+        -name: string
+        -email: string
+        -password_hash: string
+        -active: boolean
+        -created_at: datetime
+        +authenticate() boolean
+    }
+    class roles {
+        -id: bigint
+        -code: string
+        -display_name: string
+        -scope: string
+        +is_in_scope() boolean
+    }
+    class staff_assignments {
+        -id: bigint
+        -staff_account_id: bigint
+        -role_id: bigint
+        -scope: string
+        -blood_bank_id: bigint
+        -hospital_id: bigint
+        -assigned_by_staff_id: bigint
+        -assigned_at: datetime
+        -removed_by_staff_id: bigint
+        -removed_at: datetime
+        +assign() void
+        +remove() void
+    }
+    class donations {
+        -id: bigint
+        -donation_reference: string
+        -donor_profile_id: bigint
+        -blood_bank_id: bigint
+        -registered_by_staff_id: bigint
+        -status: string
+        -registered_at: datetime
+        +register() void
+        +print_ticket() void
+    }
+    class blood_banks {
+        -id: bigint
+        -public_id: string
+        -display_name: string
+        -address: string
+        -contact_phone: string
+        -contact_email: string
+        -latitude: decimal
+        -longitude: decimal
+        -active: boolean
+        +can_supply() boolean
+    }
+    class lab_test_results {
+        -id: bigint
+        -donation_id: bigint
+        -results: json
+        -status: string
+        -requires_follow_up: boolean
+        -follow_up_reason: string
+        -abo_group: string
+        -rh_factor: string
+        -failure_reason: string
+        -recorded_by_staff_id: bigint
+        -completed_at: datetime
+        +finalize() void
+    }
+    class assessment_results {
+        -id: bigint
+        -donation_id: bigint
+        -answers: json
+        -weight_kg: decimal
+        -hemoglobin_g_dl: decimal
+        -systolic_bp_mmhg: int
+        -diastolic_bp_mmhg: int
+        -pulse_bpm: int
+        -temperature_c: decimal
+        -final_decision: string
+        -deferral_type: string
+        -deferral_reason: string
+        -deferral_until: date
+        -assessed_by_staff_id: bigint
+        -assessed_at: datetime
+        +record_decision() void
+    }
+
+    hospitals "1" -- "0..*" requests : creates
+    blood_banks "0..1" -- "0..*" requests : accepts
+    staff_accounts "1" -- "0..*" requests : submits
+    requests "1" -- "0..*" request_allocations : has
+    blood_components "1" -- "0..1" request_allocations : assigned_to
+    donor_profiles "1" -- "0..*" donations : makes
+    blood_banks "1" -- "0..*" donations : receives
+    staff_accounts "1" -- "0..*" donations : registers
+    donations "1" -- "0..1" assessment_results : has_assessment
+    staff_accounts "1" -- "0..*" assessment_results : records
+    donations "1" -- "0..1" blood_units : collected_as
+    staff_accounts "1" -- "0..*" blood_units : collects_and_separates
+    donations "1" -- "0..1" lab_test_results : tested_by
+    staff_accounts "1" -- "0..*" lab_test_results : records
+    blood_units "1" -- "0..*" blood_components : separates_into
+    donations "1" -- "0..*" blood_components : traces
+    blood_components "1" -- "0..1" component_disposals : disposed_as
+    staff_accounts "1" -- "0..*" component_disposals : records
+    staff_accounts "1" -- "0..*" staff_assignments : holds
+    roles "1" -- "0..*" staff_assignments : grants
+    blood_banks "0..1" -- "0..*" staff_assignments : scopes
+    hospitals "0..1" -- "0..*" staff_assignments : scopes
+
+    %% ERD key/nullability annotations (not additional attributes):
+    %% requests.id: PK
+    %% requests.request_reference: UK
+    %% requests.hospital_id: FK
+    %% requests.submitted_by_staff_id: FK
+    %% requests.accepted_bank_id: FK "nullable"
+    %% requests.accepted_by_staff_id: FK "nullable"
+    %% requests.accepted_at: "nullable"
+    %% hospitals.id: PK
+    %% hospitals.public_id: UK
+    %% hospitals.contact_phone: "nullable"
+    %% hospitals.contact_email: "nullable"
+    %% hospitals.latitude: "nullable"
+    %% hospitals.longitude: "nullable"
+    %% blood_units.id: PK
+    %% blood_units.donation_id: FK, UK
+    %% blood_units.bag_reference: UK "nullable until bag assigned"
+    %% blood_units.volume_ml: "nullable"
+    %% blood_units.collection_fail_reason: "nullable"
+    %% blood_units.started_by_staff_id: FK
+    %% blood_units.completed_by_staff_id: FK "nullable"
+    %% blood_units.completed_at: "nullable"
+    %% blood_units.quarantined_at: "nullable"
+    %% blood_units.separation_outcome: "nullable"
+    %% blood_units.separation_failure_reason: "nullable"
+    %% blood_units.separated_by_staff_id: FK "nullable"
+    %% blood_units.separated_at: "nullable"
+    %% request_allocations.id: PK
+    %% request_allocations.request_id: FK
+    %% request_allocations.blood_component_id: FK, UK
+    %% component_disposals.id: PK
+    %% component_disposals.blood_component_id: FK, UK
+    %% component_disposals.disposed_by_staff_id: FK
+    %% blood_components.id: PK
+    %% blood_components.component_reference: UK
+    %% blood_components.donation_id: FK
+    %% blood_components.blood_unit_id: FK
+    %% blood_components.abo_group: "nullable until verified"
+    %% blood_components.rh_factor: "nullable until verified"
+    %% blood_components.released_at: "nullable"
+    %% donor_profiles.id: PK
+    %% donor_profiles.donor_reference: UK
+    %% donor_profiles.national_id: UK "nullable"
+    %% donor_profiles.address: "nullable"
+    %% staff_accounts.id: PK
+    %% staff_accounts.email: UK
+    %% roles.id: PK
+    %% roles.code: UK
+    %% staff_assignments.id: PK
+    %% staff_assignments.staff_account_id: FK
+    %% staff_assignments.role_id: FK
+    %% staff_assignments.blood_bank_id: FK "nullable"
+    %% staff_assignments.hospital_id: FK "nullable"
+    %% staff_assignments.assigned_by_staff_id: FK
+    %% staff_assignments.removed_by_staff_id: FK "nullable"
+    %% staff_assignments.removed_at: "nullable"
+    %% donations.id: PK
+    %% donations.donation_reference: UK
+    %% donations.donor_profile_id: FK
+    %% donations.blood_bank_id: FK
+    %% donations.registered_by_staff_id: FK
+    %% blood_banks.id: PK
+    %% blood_banks.public_id: UK
+    %% blood_banks.contact_phone: "nullable"
+    %% blood_banks.contact_email: "nullable"
+    %% blood_banks.latitude: "nullable"
+    %% blood_banks.longitude: "nullable"
+    %% lab_test_results.id: PK
+    %% lab_test_results.donation_id: FK, UK
+    %% lab_test_results.follow_up_reason: "nullable"
+    %% lab_test_results.abo_group: "nullable when Failed"
+    %% lab_test_results.rh_factor: "nullable when Failed"
+    %% lab_test_results.failure_reason: "nullable"
+    %% lab_test_results.recorded_by_staff_id: FK
+    %% assessment_results.id: PK
+    %% assessment_results.donation_id: FK, UK
+    %% assessment_results.deferral_type: "nullable"
+    %% assessment_results.deferral_reason: "nullable"
+    %% assessment_results.deferral_until: "nullable"
+    %% assessment_results.assessed_by_staff_id: FK

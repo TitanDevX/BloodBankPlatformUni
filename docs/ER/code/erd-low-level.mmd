@@ -1,0 +1,240 @@
+erDiagram
+    direction TB
+    %% Low-level version of the supplied overview, extended with
+    %% roles and staff_assignments beside staff_accounts.
+    %% Original table order follows the image from top to bottom.
+    %% Mermaid controls final node positions, so it may route the same
+    %% relationships differently from the draw.io layout.
+    %% High-level relative table placement is preserved in erd-low-level.drawio.
+    %% Nullable fields are marked in attribute comments.
+
+    requests {
+        bigint id PK
+        string request_reference UK
+        bigint hospital_id FK
+        string patient_reference
+        bigint submitted_by_staff_id FK
+        string component_type
+        string abo_group
+        string rh_factor
+        int quantity_units
+        datetime needed_by_at
+        string urgency
+        string delivery_location
+        string requester_contact
+        string status
+        datetime submitted_at
+        bigint accepted_bank_id FK "nullable"
+        bigint accepted_by_staff_id FK "nullable"
+        datetime accepted_at "nullable"
+    }
+
+    hospitals {
+        bigint id PK
+        string public_id UK
+        string display_name
+        string address
+        string contact_phone "nullable"
+        string contact_email "nullable"
+        decimal latitude "nullable"
+        decimal longitude "nullable"
+        boolean active
+    }
+
+    blood_units {
+        bigint id PK
+        bigint donation_id FK, UK
+        string bag_reference UK "nullable until bag assigned"
+        decimal volume_ml "nullable"
+        string collection_status
+        string collection_fail_reason "nullable"
+        bigint started_by_staff_id FK
+        datetime started_at
+        bigint completed_by_staff_id FK "nullable"
+        datetime completed_at "nullable"
+        datetime quarantined_at "nullable"
+        string separation_outcome "nullable"
+        string separation_failure_reason "nullable"
+        bigint separated_by_staff_id FK "nullable"
+        datetime separated_at "nullable"
+    }
+
+    request_allocations {
+        bigint id PK
+        bigint request_id FK
+        bigint blood_component_id FK, UK
+        datetime allocated_at
+    }
+
+    component_disposals {
+        bigint id PK
+        bigint blood_component_id FK, UK
+        bigint disposed_by_staff_id FK
+        string reason
+        datetime disposed_at
+    }
+
+    blood_components {
+        bigint id PK
+        string component_reference UK
+        bigint donation_id FK
+        bigint blood_unit_id FK
+        string component_type
+        decimal volume_ml
+        string abo_group "nullable until verified"
+        string rh_factor "nullable until verified"
+        datetime expires_at
+        string processing_decision
+        datetime processed_at
+        string status
+        datetime created_at
+        datetime released_at "nullable"
+    }
+
+    donor_profiles {
+        bigint id PK
+        string donor_reference UK
+        string full_name
+        date date_of_birth
+        string national_id UK "nullable"
+        string phone
+        string address "nullable"
+        datetime created_at
+    }
+
+    staff_accounts {
+        bigint id PK
+        string name
+        string email UK
+        string password_hash
+        boolean active
+        datetime created_at
+    }
+
+    roles {
+        bigint id PK
+        string code UK
+        string display_name
+        string scope
+    }
+
+    staff_assignments {
+        bigint id PK
+        bigint staff_account_id FK
+        bigint role_id FK
+        string scope
+        bigint blood_bank_id FK "nullable"
+        bigint hospital_id FK "nullable"
+        bigint assigned_by_staff_id FK
+        datetime assigned_at
+        bigint removed_by_staff_id FK "nullable"
+        datetime removed_at "nullable"
+    }
+
+    donations {
+        bigint id PK
+        string donation_reference UK
+        bigint donor_profile_id FK
+        bigint blood_bank_id FK
+        bigint registered_by_staff_id FK
+        string status
+        datetime registered_at
+    }
+
+    blood_banks {
+        bigint id PK
+        string public_id UK
+        string display_name
+        string address
+        string contact_phone "nullable"
+        string contact_email "nullable"
+        decimal latitude "nullable"
+        decimal longitude "nullable"
+        boolean active
+    }
+
+    lab_test_results {
+        bigint id PK
+        bigint donation_id FK, UK
+        json results
+        string status
+        boolean requires_follow_up
+        string follow_up_reason "nullable"
+        string abo_group "nullable when Failed"
+        string rh_factor "nullable when Failed"
+        string failure_reason "nullable"
+        bigint recorded_by_staff_id FK
+        datetime completed_at
+    }
+
+    assessment_results {
+        bigint id PK
+        bigint donation_id FK, UK
+        json answers
+        decimal weight_kg
+        decimal hemoglobin_g_dl
+        int systolic_bp_mmhg
+        int diastolic_bp_mmhg
+        int pulse_bpm
+        decimal temperature_c
+        string final_decision
+        string deferral_type "nullable"
+        string deferral_reason "nullable"
+        date deferral_until "nullable"
+        bigint assessed_by_staff_id FK
+        datetime assessed_at
+    }
+
+    hospitals ||--o{ requests : creates
+    blood_banks |o--o{ requests : accepts
+    staff_accounts ||--o{ requests : submits
+    requests ||--o{ request_allocations : has
+    blood_components ||--o| request_allocations : assigned_to
+    donor_profiles ||--o{ donations : makes
+    blood_banks ||--o{ donations : receives
+    staff_accounts ||--o{ donations : registers
+    donations ||--o| assessment_results : has_assessment
+    staff_accounts ||--o{ assessment_results : records
+    donations ||--o| blood_units : collected_as
+    staff_accounts ||--o{ blood_units : collects_and_separates
+    donations ||--o| lab_test_results : tested_by
+    staff_accounts ||--o{ lab_test_results : records
+    blood_units ||--o{ blood_components : separates_into
+    donations ||--o{ blood_components : traces
+    blood_components ||--o| component_disposals : disposed_as
+    staff_accounts ||--o{ component_disposals : records
+    staff_accounts ||--o{ staff_assignments : holds
+    roles ||--o{ staff_assignments : grants
+    blood_banks |o--o{ staff_assignments : scopes
+    hospitals |o--o{ staff_assignments : scopes
+
+    %% Several staff actor FKs share one line per table pair:
+    %% staff_assignments.assigned_by_staff_id and removed_by_staff_id;
+    %% blood_units.started_by_staff_id, completed_by_staff_id,
+    %% separated_by_staff_id; requests.submitted_by_staff_id and
+    %% accepted_by_staff_id. No second line is drawn for those pairs.
+    %% donations.status: Pending, assessment_deferred, Eligible,
+    %% Collecting, Collected, collection_failed, quarantine,
+    %% separation_failed, Finalized, or lab_failed.
+    %% assessment_results.final_decision: Eligible or Deferred.
+    %% assessment_results.deferral_type: temporary or permanent when Deferred.
+    %% Temporary deferral requires deferral_until; permanent deferral does not.
+    %% Eligible decisions have no deferral fields.
+    %% blood_units.collection_status: Collecting, Collected, or Failed.
+    %% A failed collection may have no bag_reference or quarantined_at.
+    %% blood_units.separation_outcome: Successful or Failed.
+    %% lab_test_results.status: Passed or Failed.
+    %% Failed tests may require follow-up with a recorded reason.
+    %% blood_components.status: Awaiting_tests, Available, allocated,
+    %% marked_for_disposal, or disposed.
+    %% Copy verified ABO/Rh from the lab result to separated components
+    %% when it becomes available; do not treat empty values as cleared stock.
+    %% Component release requires successful separation, accepted
+    %% processing, a Passed lab result, verified ABO/Rh, and no expiry.
+    %% blood_components.donation_id must match its blood unit's donation_id.
+    %% requests.patient_reference is scoped to its hospital_id.
+    %% staff_assignments.scope must agree with roles.scope: system roles
+    %% have no organization, bank roles one blood bank, and hospital roles
+    %% one hospital. Removed assignments no longer grant access.
+    %% Request acceptance allocates the full exact-match quantity
+    %% from one bank in a single transaction.
