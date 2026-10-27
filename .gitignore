@@ -1,3 +1,11 @@
+# Only these project folders and this ignore file belong in the repository.
+/*
+!/.gitignore
+!/docs/
+!/frontend/
+!/backend/
+!/ai/
+
 # Operating system and editor files
 .DS_Store
 Thumbs.db

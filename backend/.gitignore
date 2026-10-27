@@ -1,0 +1,29 @@
+# Dependencies
+/node_modules/
+/vendor/
+
+# Local environment and credentials
+/.env
+/.env.*
+!/.env.example
+/auth.json
+
+# Build and test output
+/public/build/
+/public/hot
+/public/storage
+/.phpunit.cache/
+/.phpunit.result.cache
+/coverage/
+
+# Generated application caches and runtime files
+/bootstrap/cache/*
+!/bootstrap/cache/.gitignore
+/storage/*.key
+/storage/app/*
+!/storage/app/.gitignore
+/storage/framework/*
+!/storage/framework/.gitignore
+/storage/logs/*
+!/storage/logs/.gitignore
+*.log
