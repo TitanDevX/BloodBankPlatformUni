@@ -6,6 +6,9 @@
 !/backend/
 !/ai/
 
+# Large local workflow image
+/docs/full-flow.tiff
+
 # Operating system and editor files
 .DS_Store
 Thumbs.db
