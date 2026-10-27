@@ -1,0 +1,161 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" type="device" version="24.7.17">
+  <diagram id="hospital-requests" name="Hospital Request Flow">
+    <mxGraphModel dx="1440" dy="2080" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1340" pageHeight="2060" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="Hospital Request Flowchart" style="text;html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=25;fontColor=#172B4D;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="330" y="15" width="520" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="start" value="Start" style="whiteSpace=wrap;html=1;fontFamily=Arial;fontSize=15;fontColor=#172B4D;strokeColor=#64748B;strokeWidth=1.5;align=center;verticalAlign=middle;spacing=12;rounded=1;arcSize=50;fillColor=#DDEAF6;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="490" y="85" width="200" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="data" value="Hospital staff enters patient data, component, ABO/Rh group, quantity, urgency, and other mandatory request details" style="whiteSpace=wrap;html=1;fontFamily=Arial;fontSize=15;fontColor=#172B4D;strokeColor=#64748B;strokeWidth=1.5;align=center;verticalAlign=middle;spacing=12;rounded=1;arcSize=10;fillColor=#F4F7FB;" vertex="1" parent="1">
+          <mxGeometry x="400" y="175" width="380" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="valid" value="Required details valid?" style="whiteSpace=wrap;html=1;fontFamily=Arial;fontSize=15;fontColor=#172B4D;strokeColor=#64748B;strokeWidth=1.5;align=center;verticalAlign=middle;spacing=12;rhombus;fillColor=#FFF4D6;" vertex="1" parent="1">
+          <mxGeometry x="440" y="320" width="300" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="errors" value="Show validation errors" style="whiteSpace=wrap;html=1;fontFamily=Arial;fontSize=15;fontColor=#172B4D;strokeColor=#64748B;strokeWidth=1.5;align=center;verticalAlign=middle;spacing=12;rounded=1;arcSize=12;fillColor=#FCE7E7;" vertex="1" parent="1">
+          <mxGeometry x="70" y="345" width="250" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="find" value="Find the nearest blood bank with enough available approved stock for the complete exact-match request" style="whiteSpace=wrap;html=1;fontFamily=Arial;fontSize=15;fontColor=#172B4D;strokeColor=#64748B;strokeWidth=1.5;align=center;verticalAlign=middle;spacing=12;rounded=1;arcSize=10;fillColor=#F4F7FB;" vertex="1" parent="1">
+          <mxGeometry x="400" y="480" width="380" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="found" value="Matching bank found?" style="whiteSpace=wrap;html=1;fontFamily=Arial;fontSize=15;fontColor=#172B4D;strokeColor=#64748B;strokeWidth=1.5;align=center;verticalAlign=middle;spacing=12;rhombus;fillColor=#FFF4D6;" vertex="1" parent="1">
+          <mxGeometry x="440" y="615" width="300" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="nomatch" value="Show no matching bank" style="whiteSpace=wrap;html=1;fontFamily=Arial;fontSize=15;fontColor=#172B4D;strokeColor=#64748B;strokeWidth=1.5;align=center;verticalAlign=middle;spacing=12;rounded=1;arcSize=12;fillColor=#FCE7E7;" vertex="1" parent="1">
+          <mxGeometry x="930" y="640" width="260" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="summary" value="Show matching bank and request summary" style="whiteSpace=wrap;html=1;fontFamily=Arial;fontSize=15;fontColor=#172B4D;strokeColor=#64748B;strokeWidth=1.5;align=center;verticalAlign=middle;spacing=12;rounded=1;arcSize=10;fillColor=#F4F7FB;" vertex="1" parent="1">
+          <mxGeometry x="400" y="775" width="380" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="confirm" value="Hospital staff confirms?" style="whiteSpace=wrap;html=1;fontFamily=Arial;fontSize=15;fontColor=#172B4D;strokeColor=#64748B;strokeWidth=1.5;align=center;verticalAlign=middle;spacing=12;rhombus;fillColor=#FFF4D6;" vertex="1" parent="1">
+          <mxGeometry x="440" y="885" width="300" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="submit" value="Submit request to the matched bank" style="whiteSpace=wrap;html=1;fontFamily=Arial;fontSize=15;fontColor=#172B4D;strokeColor=#64748B;strokeWidth=1.5;align=center;verticalAlign=middle;spacing=12;rounded=1;arcSize=10;fillColor=#F4F7FB;" vertex="1" parent="1">
+          <mxGeometry x="400" y="1040" width="380" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="notify" value="Notify blood bank inventory staff and display request details" style="whiteSpace=wrap;html=1;fontFamily=Arial;fontSize=15;fontColor=#172B4D;strokeColor=#64748B;strokeWidth=1.5;align=center;verticalAlign=middle;spacing=12;rounded=1;arcSize=10;fillColor=#F4F7FB;" vertex="1" parent="1">
+          <mxGeometry x="400" y="1145" width="380" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="decision" value="Inventory staff decision" style="whiteSpace=wrap;html=1;fontFamily=Arial;fontSize=15;fontColor=#172B4D;strokeColor=#64748B;strokeWidth=1.5;align=center;verticalAlign=middle;spacing=12;rhombus;fillColor=#FFF4D6;" vertex="1" parent="1">
+          <mxGeometry x="440" y="1265" width="300" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="denied" value="Mark request as rejected" style="whiteSpace=wrap;html=1;fontFamily=Arial;fontSize=15;fontColor=#172B4D;strokeColor=#64748B;strokeWidth=1.5;align=center;verticalAlign=middle;spacing=12;rounded=1;arcSize=12;fillColor=#FCE7E7;" vertex="1" parent="1">
+          <mxGeometry x="930" y="1295" width="260" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="available" value="Full matching quantity still available?" style="whiteSpace=wrap;html=1;fontFamily=Arial;fontSize=15;fontColor=#172B4D;strokeColor=#64748B;strokeWidth=1.5;align=center;verticalAlign=middle;spacing=12;rhombus;fillColor=#FFF4D6;" vertex="1" parent="1">
+          <mxGeometry x="440" y="1430" width="300" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="insufficient" value="Reject request due to insufficient available stock" style="whiteSpace=wrap;html=1;fontFamily=Arial;fontSize=15;fontColor=#172B4D;strokeColor=#64748B;strokeWidth=1.5;align=center;verticalAlign=middle;spacing=12;rounded=1;arcSize=12;fillColor=#FCE7E7;" vertex="1" parent="1">
+          <mxGeometry x="930" y="1460" width="260" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="reserve" value="Accept request and reserve the required blood components" style="whiteSpace=wrap;html=1;fontFamily=Arial;fontSize=15;fontColor=#172B4D;strokeColor=#64748B;strokeWidth=1.5;align=center;verticalAlign=middle;spacing=12;rounded=1;arcSize=10;fillColor=#F4F7FB;" vertex="1" parent="1">
+          <mxGeometry x="400" y="1595" width="380" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="delivery" value="Deliver reserved components to the hospital" style="whiteSpace=wrap;html=1;fontFamily=Arial;fontSize=15;fontColor=#172B4D;strokeColor=#64748B;strokeWidth=1.5;align=center;verticalAlign=middle;spacing=12;rounded=1;arcSize=10;fillColor=#F4F7FB;" vertex="1" parent="1">
+          <mxGeometry x="400" y="1715" width="380" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="end" value="End" style="whiteSpace=wrap;html=1;fontFamily=Arial;fontSize=15;fontColor=#172B4D;strokeColor=#64748B;strokeWidth=1.5;align=center;verticalAlign=middle;spacing=12;rounded=1;arcSize=50;fillColor=#DDEAF6;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="490" y="1875" width="200" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="note" value="Reservation occurs after acceptance. Delivery is a physical operation; this diagram does not imply that delivery tracking is implemented." style="text;html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=13;fontColor=#475569;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="330" y="1970" width="700" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="e0" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#64748B;strokeWidth=1.5;fontFamily=Arial;fontSize=14;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="start" target="data">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#64748B;strokeWidth=1.5;fontFamily=Arial;fontSize=14;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="data" target="valid">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#64748B;strokeWidth=1.5;fontFamily=Arial;fontSize=14;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="valid" target="find">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#64748B;strokeWidth=1.5;fontFamily=Arial;fontSize=14;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="find" target="found">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#64748B;strokeWidth=1.5;fontFamily=Arial;fontSize=14;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="found" target="summary">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#64748B;strokeWidth=1.5;fontFamily=Arial;fontSize=14;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="summary" target="confirm">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#64748B;strokeWidth=1.5;fontFamily=Arial;fontSize=14;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="confirm" target="submit">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#64748B;strokeWidth=1.5;fontFamily=Arial;fontSize=14;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="submit" target="notify">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#64748B;strokeWidth=1.5;fontFamily=Arial;fontSize=14;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="notify" target="decision">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" value="Accept" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#64748B;strokeWidth=1.5;fontFamily=Arial;fontSize=14;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="decision" target="available">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#64748B;strokeWidth=1.5;fontFamily=Arial;fontSize=14;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="available" target="reserve">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#64748B;strokeWidth=1.5;fontFamily=Arial;fontSize=14;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="reserve" target="delivery">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#64748B;strokeWidth=1.5;fontFamily=Arial;fontSize=14;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="delivery" target="end">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="invalid" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#64748B;strokeWidth=1.5;fontFamily=Arial;fontSize=14;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="valid" target="errors">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="retry" value="Correct details" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#64748B;strokeWidth=1.5;fontFamily=Arial;fontSize=14;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=0;entryX=0;entryY=0.5;" edge="1" parent="1" source="errors" target="data">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="195" y="225" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="no-bank" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#64748B;strokeWidth=1.5;fontFamily=Arial;fontSize=14;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="found" target="nomatch">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="reject" value="Deny" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#64748B;strokeWidth=1.5;fontFamily=Arial;fontSize=14;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="decision" target="denied">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="stock-lost" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#64748B;strokeWidth=1.5;fontFamily=Arial;fontSize=14;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="available" target="insufficient">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="end-no-bank" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#64748B;strokeWidth=1.5;fontFamily=Arial;fontSize=14;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="nomatch" target="end">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1250" y="670" />
+              <mxPoint x="1250" y="1900" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="end-denied" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#64748B;strokeWidth=1.5;fontFamily=Arial;fontSize=14;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="denied" target="end">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1250" y="1325" />
+              <mxPoint x="1250" y="1900" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="end-no-stock" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#64748B;strokeWidth=1.5;fontFamily=Arial;fontSize=14;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="insufficient" target="end">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1250" y="1497" />
+              <mxPoint x="1250" y="1900" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="cancel" value="No / Cancel" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#64748B;strokeWidth=1.5;fontFamily=Arial;fontSize=14;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="confirm" target="end">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="60" y="940" />
+              <mxPoint x="60" y="1900" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,94 @@
+@startuml
+title Blood Bank Platform — System Block Diagram
+
+top to bottom direction
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam packageStyle rectangle
+
+rectangle "Client\nUser Interface" as Client
+
+package "Server — Modular Monolithic Application" {
+
+    package "A: Organizations" {
+        rectangle "Presentation Layer" as A1
+        rectangle "Business Logic Layer" as A2
+        rectangle "Data Access Layer" as A3
+        A1 --> A2
+        A2 --> A3
+    }
+
+    package "B: Accounts" {
+        rectangle "Presentation Layer" as B1
+        rectangle "Business Logic Layer" as B2
+        rectangle "Data Access Layer" as B3
+        B1 --> B2
+        B2 --> B3
+    }
+
+    package "C: Donors" {
+        rectangle "Presentation Layer" as C1
+        rectangle "Business Logic Layer" as C2
+        rectangle "Data Access Layer" as C3
+        C1 --> C2
+        C2 --> C3
+    }
+
+    package "D: Donations" {
+        rectangle "Presentation Layer" as D1
+        rectangle "Business Logic Layer" as D2
+        rectangle "Data Access Layer" as D3
+        D1 --> D2
+        D2 --> D3
+    }
+
+    package "E: Requests" {
+        rectangle "Presentation Layer" as E1
+        rectangle "Business Logic Layer" as E2
+        rectangle "Data Access Layer" as E3
+        E1 --> E2
+        E2 --> E3
+    }
+
+    package "F: Analytics & AI" {
+        rectangle "Presentation Layer" as F1
+        rectangle "Business Logic Layer" as F2
+        rectangle "Data Access Layer" as F3
+        F1 --> F2
+        F2 --> F3
+    }
+
+    package "G: Inventory" {
+        rectangle "Presentation Layer" as G1
+        rectangle "Business Logic Layer" as G2
+        rectangle "Data Access Layer" as G3
+        G1 --> G2
+        G2 --> G3
+    }
+}
+
+database "Database" as DB
+
+Client --> A1
+Client --> B1
+Client --> C1
+Client --> D1
+Client --> E1
+Client --> F1
+Client --> G1
+
+A3 --> DB
+B3 --> DB
+C3 --> DB
+D3 --> DB
+E3 --> DB
+F3 --> DB
+G3 --> DB
+
+legend bottom
+    Arrows indicate the direction of requests and data access.
+    Responses return along the same paths.
+    Cross-module interactions are omitted for clarity.
+endlegend
+
+@enduml

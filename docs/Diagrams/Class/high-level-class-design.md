@@ -1,96 +1,92 @@
-# Blood Bank Platform — ERD-aligned class design
+# Blood Bank Platform — complete workflow class design
 
-The authoritative detailed schema for this revision is `docs/ER/code/erd-low-level.mmd`. The class model preserves its entity identifiers, attribute identifiers, detailed data types, association meanings, and multiplicities. No entity is renamed or replaced with a synonym.
+Updated 27 October 2026. The design uses `docs/ER/code/erd-low-level.mmd` as the shared entity/attribute baseline and the current functional requirements, detailed use cases and AI forecasting plan for behavior. This revision closes the six gaps found in review. It is a design update, not backend implementation or a database migration.
 
-## Deliverables
+## Scope and correspondence
 
-- `high-level-class-diagram-a4.mmd`: compact Mermaid class diagram for A4 landscape.
-- `high-level-class-diagram.mmd` and `high-level-class-diagram-horizontal.mmd`: identical current overview entry points, so older links remain current.
-- `class-diagram-detailed.mmd`: all 14 ERD entities, all 135 attributes with exact ERD types, all 22 associations with ERD captions, proposed operations, and key/nullability annotations.
-- `high-level-class-diagram-a4.svg` / `.png`: vector diagram and print preview.
-- `output/pdf/Blood_Bank_Class_Diagram_A4.pdf`: verified one-page A4 landscape PDF.
+There are now **16 entities, 189 attributes and 26 role-specific associations** in both the detailed ERD and detailed class model. All 14 original entity identifiers and all 135 original field names/types are preserved. Additions are seven routing/rejection fields on `requests` and the two forecast entities `forecast_runs` and `demand_forecasts`.
 
-The overview displays selected fields and operations with types suppressed to retain readable text on A4. This is a UML presentation choice, not a schema change. The detailed source retains every ERD field and type. Names remain lowercase plural snake_case exactly as requested, rather than being converted to conventional singular class names. Attributes use private visibility (`-`); proposed operations use public visibility (`+`). Operations are proposed responsibilities, not claims about existing PHP methods.
+Existing names remain verbatim lowercase plural snake_case. No aliases such as DonationAttempt, BloodCollection or HospitalRequest are introduced. `roles` remains an entity. The A4 overview suppresses types and shows selected members; `class-diagram-detailed.mmd` contains every ERD field/type, full proposed operations, association captions and key/nullability annotations. Existing main/horizontal/A4 overview filenames contain the same current source.
 
-## Classes and selected overview members
+Association direction is a layout choice for these undirected links. Both endpoint multiplicities are preserved. The two request–bank associations intentionally have different roles and cardinalities: `addressed` is required for a submitted request; `accepted` is optional until acceptance. These captions remain visible in the A4 view so their meanings cannot be confused. Other role captions remain in source comments and the detailed view.
 
-| Exact ERD / class name | Selected attributes | Proposed operations |
+## Closed review findings
+
+| Finding | Design fix | ERD impact |
 | --- | --- | --- |
-| requests | patient_reference, component_type, quantity_units, status | accept(), reject() |
-| hospitals | display_name, address | submit_request() |
-| blood_units | volume_ml, collection_status, separation_outcome | finish_collection(), record_separation() |
-| request_allocations | allocated_at | reserve() |
-| component_disposals | reason, disposed_at | record() |
-| blood_components | component_type, expires_at, status | is_available() |
-| donor_profiles | full_name, phone | update_profile() |
-| staff_accounts | name, email | authenticate() |
-| roles | code, scope | is_in_scope() |
-| staff_assignments | scope, removed_at | assign(), remove() |
-| donations | donation_reference, status | register(), print_ticket() |
-| blood_banks | display_name, latitude, longitude | can_supply() |
-| lab_test_results | status, requires_follow_up | finalize() |
-| assessment_results | final_decision, deferral_reason | record_decision() |
+| Pending requests had no durable destination bank | `requests.addressed_bank_id`, `matched_at`, `matching_policy_version`; `submit()` rechecks and retains the destination | Adds a required addressed-bank association; the original optional accepting-bank association is unchanged |
+| Saved forecasts were absent | `forecast_runs.generate()/validate_result()/save_result()/retrieve_saved()` and `demand_forecasts.validate()` | Adds two entities, bank/requester ownership and run-to-point associations |
+| Nearest-bank matching was not assigned | Static `requests.find_nearest_match(criteria)`; `blood_banks.can_supply()` and `blood_components.is_available()` support it | No saved request or reservation is created by matching |
+| Request/expiry notices had no owner | `requests.notify_inventory_staff()`, `blood_components.check_expiry()/notify_inventory_staff()`, `blood_banks.list_notices()` | Notices are authorized read projections of existing durable rows, not new entities |
+| Processing writes and release reevaluation were missing | `blood_components.record_processing()/reevaluate_availability()`; collection separation and laboratory finalization trigger reevaluation | Uses the existing processing, test, separation, stock and time fields |
+| Rejection audit and competing requests were incomplete | `requests.reject()/reevaluate_pending_requests()`; rejection actor/time/reason/source retained | Adds `rejected_by_staff_id`, `rejected_at`, `rejection_reason`, `rejection_source` |
 
-Methods do not turn a row or stored result into an authorization authority. Application services/policies coordinate authorized workflows, transactions and queries. Constructors/factories, search/list operations, persistence, queues and controllers are not exhaustively modeled in this domain overview. No additional service classes, inheritance hierarchy or persistent entities are introduced merely to display more UML relationship types.
+The A4 `requests` and `blood_components` classes now display the exact `abo_group` and `rh_factor` fields rather than hiding these essential matching inputs.
 
-## All 22 associations, matching the ERD
+## Operation responsibilities and invariants
 
-The multiplicities below are written beside their corresponding class. For example, `blood_banks [0..1] — requests [0..*]` means each request has at most one accepting bank and each bank may accept many requests.
+### Match, submit and decide
 
-| Class A | A multiplicity | ERD meaning | Class B | B multiplicity |
+`requests.find_nearest_match(criteria)` is a static query, underlined in the diagram. It can run before any request object is persisted. It uses the hospital location and requested component, ABO/Rh and quantity, then finds the nearest single bank with the full eligible quantity. Every unit must be processing-accepted, laboratory-cleared, verified, unexpired, undisposed and available. A retrieval/location failure is an error, not a no-match result. A deterministic tie policy belongs to `matching_policy_version`.
+
+A no-match search, Retry and cancellation do not create a submitted request or reserve stock. `submit()` checks hospital scope, revalidates the current match, records the addressed bank and match metadata, saves the pending request and exposes its bank worklist notice. Submitted bank, time, component/group and quantity are original facts; the current scope does not introduce edits, rerouting or correction policy for them.
+
+`accept()` checks the deciding inventory staff member's current bank scope and request state, locks/rechecks eligible units, records the accepting bank/actor/time and reserves exactly `quantity_units` specific components in one transaction. The accepting bank equals the addressed bank. In that same decision, `reevaluate_pending_requests()` automatically rejects similar pending requests that remaining stock cannot fully satisfy and leaves adequately supplied requests pending. Partial reservation and duplicate component allocation are prohibited. Acceptance is not proof of delivery.
+
+Manual `reject()` records actor, time, source=`manual` and a reason code; when the UI supplies no free-text reason, a code such as `manual_decision` records the actual action without adding a mandatory form step. Automatic insufficient-stock rejection records time/source/reason and leaves the staff actor null; it does not fabricate a user. A pending request has neither acceptance nor rejection audit values. A rejected request has no allocations. Accepted requests have no rejection values. The existing staff–request association represents the required submitter; optional decision actors remain separate typed fields, following the ERD's existing one-line-per-staff-pair convention.
+
+### Processing, laboratory clearance and stock
+
+`blood_units` keeps collection and separation outcomes, failure details and responsible staff/time. `blood_components.record_processing()` records each container's identity, type, volume, expiry and acceptance/rejection. In the current FR-16 single processing action, the processing technician is traceable through the linked unit's `separated_by_staff_id`, with component `processed_at`. A future workflow allowing independent per-component decisions by different technicians would need a separate actor/history design.
+
+Processing and testing can complete in either order. Successful separation creates components; failed separation creates none. `record_processing()`, `record_separation()` and `lab_test_results.finalize()` coordinate `reevaluate_availability()`. Release requires accepted processing, successful separation, passed tests and verified ABO/Rh. Verified values are copied into the existing component fields. Failed laboratory screening is distinct from pre-donation deferral.
+
+`is_available()` additionally checks current expiry, allocation and disposal whenever stock is used. A delayed/failed monitoring task cannot make an expired component eligible. `component_disposals.record()` records actual physical disposal, responsible staff and actual time; a notice or rejected/expired state alone is not that record. Donor → donation → unit → component links and the direct donation → component link remain intact.
+
+### Notices without a new notification entity
+
+`blood_banks.list_notices()` returns two current worklists for authorized active inventory assignments at that bank:
+
+- pending `requests` where `addressed_bank_id` is that bank;
+- expired, undisposed `blood_components` traced to that bank.
+
+The corresponding entity operations expose/update these durable states; `check_expiry()` makes unusability explicit without deleting allocation history or pretending physical disposal occurred. Request and expiry notices become accessible even though there is no separate per-recipient notification row. FR-18/FR-23 require accessible notices, not read receipts, sent-message history or an email/SMS provider. Those features would need their own future persistence/delivery design. Worklist/query failure never bypasses stock validity checks.
+
+### Forecast generation and retrieval
+
+`forecast_runs` belongs to one bank and one requesting staff account. Access requires a current permitted bank-administrator assignment at generation, job execution and retrieval. Generation reads authorized aggregates of original submitted request quantities, grouped by their addressed bank, component and ABO/Rh. Later pending/accepted/rejected status does not change the original demand event. No-match searches and cancelled drafts are not stored submissions and are not counted. Unknown historical attribution is not backfilled from today's nearest bank or merely from `accepted_bank_id`.
+
+The run pins the cutoff/timezone, history window, target/dataset/feature/attribution/model versions, parameters, completeness, checksummed snapshot/artifact references and a result manifest. Snapshot-dependent fields may be absent during preparation/failure; successful/partial publication requires real complete provenance, never placeholder values. Input snapshots contain aggregates, not patient references, donor records or credentials. Operating completeness and synchronization data remain prerequisites supplied by an ingestion contract; these run fields do not implement offline synchronization.
+
+Run states are queued → running → succeeded/partial/failed. `validate_result()` verifies every requested series/date, finite nonnegative expectations, appropriate units and matching provenance/model versions. Optional quantiles are all absent unless validated, then nonnegative and ordered. Unavailable series are explicitly represented in the manifest with reasons; they are not invented as zero points. Point rows have result status ok/fallback.
+
+`save_result()` atomically publishes the manifest and all successful daily `demand_forecasts` rows. The composite run idempotency key/fingerprint prevents duplicate retries and detects changed inputs; point uniqueness prevents duplicated run/series/dates. Published results and provenance are immutable; regeneration creates another run. `retrieve_saved()` returns the selected stored run/points without recalculating or substituting a different forecast. Forecasting does not allocate components or decide requests. Forecasts concern recorded submitted demand and do not claim unrecorded no-match needs or total clinical demand.
+
+## Classes and role-specific relationships
+
+The original 14 classes remain: `requests`, `hospitals`, `blood_units`, `request_allocations`, `component_disposals`, `blood_components`, `donor_profiles`, `staff_accounts`, `roles`, `staff_assignments`, `donations`, `blood_banks`, `lab_test_results`, `assessment_results`. Added: `forecast_runs`, `demand_forecasts`.
+
+All original 22 associations retain their multiplicities and meanings. Four associations are added:
+
+| Source class | Source multiplicity | Role | Target class | Target multiplicity |
 | --- | --- | --- | --- | --- |
-| hospitals | 1 | creates | requests | 0..* |
-| blood_banks | 0..1 | accepts | requests | 0..* |
-| staff_accounts | 1 | submits | requests | 0..* |
-| requests | 1 | has | request_allocations | 0..* |
-| blood_components | 1 | assigned_to | request_allocations | 0..1 |
-| donor_profiles | 1 | makes | donations | 0..* |
-| blood_banks | 1 | receives | donations | 0..* |
-| staff_accounts | 1 | registers | donations | 0..* |
-| donations | 1 | has_assessment | assessment_results | 0..1 |
-| staff_accounts | 1 | records | assessment_results | 0..* |
-| donations | 1 | collected_as | blood_units | 0..1 |
-| staff_accounts | 1 | collects_and_separates | blood_units | 0..* |
-| donations | 1 | tested_by | lab_test_results | 0..1 |
-| staff_accounts | 1 | records | lab_test_results | 0..* |
-| blood_units | 1 | separates_into | blood_components | 0..* |
-| donations | 1 | traces | blood_components | 0..* |
-| blood_components | 1 | disposed_as | component_disposals | 0..1 |
-| staff_accounts | 1 | records | component_disposals | 0..* |
-| staff_accounts | 1 | holds | staff_assignments | 0..* |
-| roles | 1 | grants | staff_assignments | 0..* |
-| blood_banks | 0..1 | scopes | staff_assignments | 0..* |
-| hospitals | 0..1 | scopes | staff_assignments | 0..* |
+| blood_banks | 1 | receives_addressed | requests | 0..* |
+| blood_banks | 1 | owns | forecast_runs | 0..* |
+| staff_accounts | 1 | requests | forecast_runs | 0..* |
+| forecast_runs | 1 | contains | demand_forecasts | 0..* |
 
-The compact overview suppresses relationship captions to avoid crowding, but retains every association and endpoint multiplicity. Each ERD caption is preserved in an overview source comment and displayed in the detailed Mermaid model. Reordering undirected endpoints for layout does not change their meaning.
+A queued/failed run may contain zero points. The existing `blood_banks [0..1] — requests [0..*] : accepts` association remains separate. Role assignments still use one bank XOR one hospital, or neither for system roles. Removal revokes access while preserving actor/history references. No inheritance or composition diamond is introduced without its actual UML semantics. Public methods describe domain responsibilities; an implementation may delegate orchestration to services/policies/repositories without changing existing entity names. No runtime API signatures are specified by the compact diagram's suppressed parameter lists.
 
-## Important rules retained from this ERD
+## Functional coverage
 
-1. `donations` includes attempts that never progress to collection. It has at most one `assessment_results`, `blood_units` and `lab_test_results` record. A failed collection/separation may produce zero `blood_components`.
-2. `blood_components` links directly to `donations` and also to `blood_units`. Its `donation_id` must agree with the linked blood unit's `donation_id`; the direct trace association is explicitly retained.
-3. The accepting bank is `requests.accepted_bank_id`. It is optional before acceptance and identifies exactly one bank on acceptance. The relationship is not reinterpreted as a matched/addressed bank. Pending/rejected requests have no allocations; acceptance allocates the complete exact-match quantity from the accepting bank atomically.
-4. `requests.patient_reference` is scoped by `hospital_id`; no separate Patient class is introduced.
-5. `roles` is an explicit class associated with `staff_assignments`, not an enum substituted for the ERD entity. `staff_assignments.scope` agrees with `roles.scope`. A bank scope has one bank, a hospital scope one hospital, and a system scope neither. A removed assignment no longer grants access.
-6. `blood_components.abo_group` and `rh_factor` are actual ERD fields. Verified values are copied from laboratory results; they are not replaced by a solely derived value object. These attributes remain in the detailed diagram even when suppressed in the A4 overview.
-7. Component availability requires successful separation, accepted processing, passed laboratory results, verified ABO/Rh, no expiry and no conflicting stock state. Testing and processing may complete in either order. Failed laboratory testing is distinct from pre-donation deferral.
-8. Temporary deferral requires `deferral_until`; permanent deferral does not. Eligible decisions have no deferral fields. Follow-up indicators/reasons, screening measurements, failure reasons, physical disposal information, staff audit fields and timestamps remain in the detailed model exactly as supplied by the ERD.
-9. The ERD draws one association per class pair for several staff actor roles. The class overview follows that same convention. Nullable additional actor fields, including request acceptance and assignment removal actors, remain nullable in the detailed field annotations; the combined line is not a claim that those optional events have already occurred.
-10. Disposal records actual physical disposal. Expiry or rejection alone is not a physical disposal record. Historical traceability and audit records are retained; no composition/cascade-delete claim is introduced.
+FR-01/02 organization registration, FR-03–07 staff/account queries, registration, updates, login and assignments, FR-08–10 donor search/registration/profile updates, FR-11/12 donation registration/ticket, FR-13 eligibility, FR-14/15 collection, FR-16 processing, FR-17 laboratory finalization, FR-18 submission/notices, FR-19 matching, FR-20 atomic decisions/rejection/reevaluation, FR-21 saved forecast generation, FR-22 exact saved retrieval, FR-23 expiry notices and FR-24 physical disposal all have an assigned entity operation or application query responsibility. Routine list/query and constructor plumbing is not exhaustively drawn on A4.
 
-## Reconciliation with other project documents
+The current workflow follows the detailed use-case text: search before submission. The older process image's broader submit-before-match ordering remains illustrative. The older high-level draw.io summarizes forecasting as a capability and hides detail tables; the low-level source/current Markdown dictionary define exact records. The older Word dictionary, persistence review and root legacy ERD/SQL files are historical references, not the current field baseline. Their originals are retained rather than overwriting the user's edited documents.
 
-The current low-level ERD is authoritative for class/entity and attribute naming in this revision. `docs/ER/code/erd-high-level.drawio` and the exported high-level image provide overview context; the low-level source explicitly extends that overview with `roles` and `staff_assignments`.
+Offline recording/synchronization stays separate per the user's choice. Notifications are worklists as stated above. Donor portals, appointments, transfusion records, external messaging, model deployment, migrations and training/runtime implementation are not added by this diagram task.
 
-The earlier class diagram's `DonationAttempt`, `BloodCollection`, `EligibilityAssessment`, `LaboratoryScreening`, `HospitalRequest`, `Donor` and other renamed entities are superseded by the exact ERD identifiers. Its generic `Notification` and `DemandForecast` classes are absent from this ERD and therefore are not carried into this ERD-aligned model.
+## Deliverables and verification
 
-This naming alignment does not cancel forecasting or expiry notification requirements. FR-21–FR-23 still describe forecasting and expiry notices; those persistence/service decisions remain outside the current low-level ERD. The high-level draw.io contains a `Demand Forecasting` capability label without a corresponding low-level entity. These are recorded as source coverage gaps, not silently resolved by adding or renaming classes.
+Current overview entry points: `high-level-class-diagram.mmd`, `high-level-class-diagram-horizontal.mmd`, `high-level-class-diagram-a4.mmd`. Detailed source: `class-diagram-detailed.mmd`. Current schema/dictionary: `docs/ER/code/erd-low-level.mmd`, `docs/ER/docs/erd-data-dictionary.md`. Checked print: `output/pdf/Blood_Bank_Class_Diagram_A4.pdf`.
 
-The newer request use cases describe a bank addressed at submission and request notifications; the current ERD provides an optional accepting bank. The class diagram now follows the ERD's actual accepting-bank relationship. Resolving the addressed-bank/notification persistence requirement needs a separate explicit ERD decision.
-
-The literature review's offline recording/synchronization remains documented separately, following the user's instruction. No offline/synchronization classes are introduced into the main diagram. Donor portals, appointment tools, transfusion records, external integrations and image analysis are likewise not imported from related systems.
-
-No ERD, backend source, functional requirements, use cases or literature documents were changed by this update. This is a proposed class design, not a claim that the corresponding PHP classes are implemented.
-
-## Verification
-
-Five review-and-edit passes checked source selection/names, every attribute/type, all association meanings/multiplicities, A4 layout and final PDF output. Automated comparison confirmed 14 exact entity names, all 135 detailed attributes/types and all 22 normalized associations with matching multiplicities. The final overview has zero detected connector crossings and zero detected paths through class boxes. The exported PDF is one A4 landscape page, with diagram text around 8.59 pt and no text outside page bounds. It was rendered and visually inspected. Other Mermaid versions/fonts may alter automatic placement; the PDF is the verified print result.
+Five passes check the six requirements gaps, original identifier/type preservation, every revised ERD field/association and multiplicity, layout, and final print. All 135 original fields/types remain; the revised 189 fields and 26 role-specific associations match the detailed class model. The A4 view includes ABO/Rh and both named bank roles and has zero detected connector crossings or paths through class boxes. The final PDF is one A4 landscape page with approximately 8.14 pt vector diagram text, no clipping and no class-name wrapping. Other renderers/fonts can change placement; the PDF is the verified print result. No backend source was implemented or altered.

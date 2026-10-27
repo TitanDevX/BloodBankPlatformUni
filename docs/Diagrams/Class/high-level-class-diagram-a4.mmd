@@ -2,29 +2,14 @@
 classDiagram
     direction LR
 
-    class component_disposals {
-        -reason
-        -disposed_at
-        +record()
+    class assessment_results {
+        -final_decision
+        -deferral_reason
+        +record_decision()
     }
-    class requests {
-        -patient_reference
-        -component_type
-        -quantity_units
-        -status
-        +accept()
-        +reject()
-    }
-    class donations {
-        -donation_reference
-        -status
-        +register()
-        +print_ticket()
-    }
-    class donor_profiles {
-        -full_name
-        -phone
-        +update_profile()
+    class request_allocations {
+        -allocated_at
+        +reserve()
     }
     class blood_units {
         -volume_ml
@@ -33,79 +18,114 @@ classDiagram
         +finish_collection()
         +record_separation()
     }
-    class hospitals {
-        -display_name
-        -address
-        +submit_request()
-    }
-    class lab_test_results {
-        -status
-        -requires_follow_up
-        +finalize()
-    }
-    class blood_components {
-        -component_type
-        -expires_at
-        -status
-        +is_available()
+    class demand_forecasts {
+        -forecast_date
+        -predicted_units
+        +validate()
     }
     class roles {
         -code
-        -scope
         +is_in_scope()
     }
-    class staff_assignments {
-        -scope
-        -removed_at
-        +assign()
-        +remove()
+    class blood_components {
+        -component_type
+        -abo_group
+        -rh_factor
+        -expires_at
+        -processing_decision
+        -status
+        +record_processing()
+        +is_available()
+        +check_expiry()
     }
-    class request_allocations {
-        -allocated_at
-        +reserve()
+    class donations {
+        -donation_reference
+        -status
+        +register()
+        +print_ticket()
     }
-    class assessment_results {
-        -final_decision
-        -deferral_reason
-        +record_decision()
-    }
-    class blood_banks {
-        -display_name
-        -latitude
-        -longitude
-        +can_supply()
+    class lab_test_results {
+        -status
+        +finalize()
     }
     class staff_accounts {
         -name
         -email
         +authenticate()
     }
+    class donor_profiles {
+        -full_name
+        -phone
+        +update_profile()
+    }
+    class hospitals {
+        -display_name
+        +submit_request()
+    }
+    class component_disposals {
+        -reason
+        -disposed_at
+        +record()
+    }
+    class forecast_runs {
+        -status
+        -dataset_version
+        +generate()
+        +retrieve_saved()
+    }
+    class staff_assignments {
+        -role_id
+        -removed_at
+        +assign()
+        +remove()
+    }
+    class requests {
+        -component_type
+        -abo_group
+        -rh_factor
+        -quantity_units
+        -status
+        +find_nearest_match()$
+        +submit()
+        +accept()
+        +reject()
+    }
+    class blood_banks {
+        -display_name
+        +can_supply()
+        +list_notices()
+    }
 
-    request_allocations "0..1" -- "1" blood_components
-    assessment_results "0..*" -- "1" staff_accounts
-    staff_accounts "1" -- "0..*" staff_assignments
-    blood_components "0..*" -- "1" donations
-    donations "1" -- "0..1" lab_test_results
-    staff_assignments "0..*" -- "0..1" blood_banks
-    donor_profiles "1" -- "0..*" donations
-    requests "0..*" -- "0..1" blood_banks
-    request_allocations "0..*" -- "1" requests
-    blood_components "1" -- "0..1" component_disposals
-    donations "0..*" -- "1" staff_accounts
-    donations "0..*" -- "1" blood_banks
-    lab_test_results "0..*" -- "1" staff_accounts
-    hospitals "0..1" -- "0..*" staff_assignments
-    requests "0..*" -- "1" hospitals
     roles "1" -- "0..*" staff_assignments
-    donations "1" -- "0..1" blood_units
-    requests "0..*" -- "1" staff_accounts
-    donations "1" -- "0..1" assessment_results
-    blood_units "0..*" -- "1" staff_accounts
-    blood_components "0..*" -- "1" blood_units
+    hospitals "0..1" -- "0..*" staff_assignments
+    staff_assignments "0..*" -- "1" staff_accounts
+    forecast_runs "1" -- "0..*" demand_forecasts
+    staff_accounts "1" -- "0..*" lab_test_results
+    blood_components "0..*" -- "1" donations
+    blood_banks "1" -- "0..*" requests : addressed
+    component_disposals "0..1" -- "1" blood_components
+    requests "1" -- "0..*" request_allocations
+    assessment_results "0..1" -- "1" donations
+    blood_banks "1" -- "0..*" forecast_runs
+    staff_accounts "1" -- "0..*" blood_units
+    request_allocations "0..1" -- "1" blood_components
     component_disposals "0..*" -- "1" staff_accounts
+    donor_profiles "1" -- "0..*" donations
+    staff_accounts "1" -- "0..*" donations
+    blood_banks "0..1" -- "0..*" requests : accepted
+    blood_units "0..1" -- "1" donations
+    hospitals "1" -- "0..*" requests
+    blood_components "0..*" -- "1" blood_units
+    blood_banks "1" -- "0..*" donations
+    blood_banks "0..1" -- "0..*" staff_assignments
+    requests "0..*" -- "1" staff_accounts
+    staff_accounts "1" -- "0..*" assessment_results
+    forecast_runs "0..*" -- "1" staff_accounts
+    lab_test_results "0..1" -- "1" donations
 
-    %% Association meanings from docs/ER/code/erd-low-level.mmd:
+    %% Selected exact ERD fields; types are suppressed only in the A4 view.
     %% hospitals -- requests: creates
+    %% blood_banks -- requests: receives_addressed
     %% blood_banks -- requests: accepts
     %% staff_accounts -- requests: submits
     %% requests -- request_allocations: has
@@ -127,12 +147,15 @@ classDiagram
     %% roles -- staff_assignments: grants
     %% blood_banks -- staff_assignments: scopes
     %% hospitals -- staff_assignments: scopes
-
-    %% Names are identical to ERD entity/attribute identifiers.
-    %% Overview: selected members; UML attribute/return types are suppressed.
-    %% All ERD attributes and types appear in class-diagram-detailed.mmd.
-    %% requests has an optional ACCEPTING bank, not an addressed/matched bank.
-    %% Acceptance reserves the full exact-match quantity from that bank atomically.
-    %% Assignment scope follows roles.scope: one bank OR one hospital OR neither for system roles.
-    %% Components trace directly to donations and also through blood_units.
-    %% Staff actor roles and optional audit actor FKs follow the ERD.
+    %% blood_banks -- forecast_runs: owns
+    %% staff_accounts -- forecast_runs: requests
+    %% forecast_runs -- demand_forecasts: contains
+    %% find_nearest_match is a static query over unsaved criteria, not a saved request.
+    %% submitted requests have one addressed bank; accepting bank remains optional until acceptance.
+    %% Both bank references agree on acceptance. Acceptance reserves the full exact-match quantity atomically.
+    %% Reevaluate similar pending requests in that decision; preserve manual/automatic rejection audit.
+    %% Processing and final laboratory results each trigger availability reevaluation; expiry is checked at use time.
+    %% Notices are bank-scoped pending-request and expired-component worklists, not new persistent entities.
+    %% forecast_runs owns frozen provenance and demand_forecasts stores immutable daily predictions.
+    %% retrieve_saved never recalculates or substitutes another run. Forecasting does not mutate stock.
+    %% Existing entity/attribute names were preserved; new forecast entities and routing/audit fields are additive.

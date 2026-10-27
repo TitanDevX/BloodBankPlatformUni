@@ -1,25 +1,25 @@
-# Five-pass review — updated ERD-aligned class diagram
+# Five-pass review — closing missing functionality
 
-Source: `docs/ER/code/erd-low-level.mmd` in the user's reorganized ERD folder. This review supersedes the earlier 15-class design and its counts.
+Reviewed 27 October 2026. This supersedes the prior ERD-only 14-class review. Final design: 16 entities, 189 attributes, 26 role-specific associations; all 14 original names and all 135 original fields/types preserved.
 
-## 1 — Source selection and exact names
+## 1 — Requirements and workflow gaps
 
-Read the updated low-level ERD and checked the reorganized high-level draw.io/ERD documentation context. Replaced earlier renamed domain concepts with exact ERD identifiers. Restored `roles` as a class. Removed classes not present in the chosen ERD from the aligned model; retained forecasting/notification/offline scope gaps as notes. No ERD files were edited.
+Assigned nearest complete exact-match search, validated submission/destination, request and expiry worklists, processing writes/release reevaluation, manual/automatic rejection and competing-request reevaluation, saved forecast generation and exact saved retrieval. Matching is static over unsaved criteria; no-match searches create no request. No runtime implementation is claimed.
 
-## 2 — Attributes, types and responsibilities
+## 2 — Schema changes and identifier preservation
 
-Generated the detailed model directly from all 135 ERD attributes across 14 entities. Compared every attribute name/type against the parsed ERD, including IDs, foreign keys, ABO/Rh copies, assessment measurements, separation, follow-up and actor/time fields. Retained key/nullability metadata in comments. Selected exact-name attributes for the A4 view and suppressed their types there to preserve legibility. Public operations are proposed workflow responsibilities, not statements about existing Laravel classes.
+Added only `addressed_bank_id`, `matched_at`, `matching_policy_version` and four rejection audit fields to `requests`; retained the separate original accepting-bank field. Added the previously proposed `forecast_runs` and `demand_forecasts` names with explicit provenance, state and daily expected-result fields. Compared every original field/type against the pre-change source. Snapshot-dependent values remain nullable during preparation/failure and required for publication; no fabricated provenance is allowed. Notices are derived worklists rather than new persistent entities. Offline sync remains separately scoped.
 
-## 3 — Relationships, multiplicities and lifecycle
+## 3 — Full ERD/class correspondence and business invariants
 
-Converted all 22 ERD relationships to UML associations. Compared normalized class pairs and both endpoint multiplicities, accounting for endpoint reversal during layout. Restored the direct `donations`–`blood_components` association and all drawn staff associations. Restored the optional accepting-bank meaning of `requests`; removed the prior addressed-bank reinterpretation. Reviewed temporary/permanent deferral, zero-component outcomes, laboratory/processing release, full-quantity atomic acceptance, physical disposal and role scope against the ERD comments.
+Compared all 189 typed detailed attributes and all 26 endpoint multiplicities, using a multiset that keeps the two bank–request roles distinct. All original associations remain with their original meanings. Reviewed full atomic reservations, bank agreement, exact ABO/Rh, no partial allocation, terminal decision audits, automatic-null actor rules, processing/testing in either order, real disposal, authorized worklists, immutable run publication, idempotent retries and unavailable forecast manifests without invented zeros. Proposed operation responsibilities implement these contracts through appropriate transaction/policy services in a future backend.
 
-## 4 — Layout review and edits
+## 4 — Geometry and print edits
 
-Confirmed that the 14-node, 22-edge graph admits a planar drawing. Compared orientations/orderings and compacted selected members without removing relationships or renaming fields. Used plain SVG text and matching global/theme font settings to avoid wrapping/measurement defects. The selected A4 overview uses left-to-right direction and has zero detected connector crossings and zero detected paths through class boxes. Association role captions are kept in source comments/detailed view rather than crowding the A4 drawing.
+Checked that the expanded graph can be drawn without crossings. Compared compact orientations/orderings while retaining all associations. Kept both bank-role captions and essential ABO/Rh fields. Used plain SVG text with consistent measurement/font settings. Selected left-to-right A4 overview: zero detected connector crossings and zero detected paths through class boxes. Suppressed overview types instead of renaming fields or removing associations.
 
-## 5 — Final correspondence and print verification
+## 5 — Final sources and output
 
-Rechecked the saved overview and detailed source after layout edits. Confirmed 14 exact class names, an ERD-subset of overview fields, all 135 exact detailed attribute/type pairs, and all 22 exact association multiplicities. Confirmed the ERD source hash was unchanged. Rebuilt all current overview source/preview entry points and replaced the earlier A4 PDF. The final PDF has one A4 landscape page, contains every exact class name, uses around 8.59 pt vector diagram text and has no text outside the page. Rendered and visually inspected the final page for text alignment, wrapping, labels and compartment borders.
+Rechecked the final source aliases, preserved original identifiers/types, static/full Mermaid parsing, distinct role captions, schema/dictionary counts, operation coverage and revised forecast-plan/architecture descriptions. Exported a one-page A4 landscape PDF and visually checked the rendered page for full labels, readable text, compartment borders and no clipping. PDF diagram text is approximately 8.14 pt. Regenerated the low-level ERD preview and current Markdown dictionary. Existing high-level draw.io/Word historical references are retained and their scope is recorded; no backend or user requirement/use-case documents are edited by this task.
 
-These checks apply to the supplied renderer/font/configuration. The detailed model is intentionally not claimed to fit on one A4 page. The current class model follows the ERD; conflicts with forecast/notification persistence and addressed-bank use cases are documented for a separate ERD decision.
+Geometry checks apply to the supplied Mermaid 12.2.0/font/configuration. Source/table agreement and a clean drawing do not constitute runtime transaction, authorization or model-performance testing. Implementation, data readiness and offline synchronization remain separate work.

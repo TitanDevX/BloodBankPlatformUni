@@ -1,7 +1,7 @@
 erDiagram
     direction TB
     %% Low-level version of the supplied overview, extended with
-    %% roles and staff_assignments beside staff_accounts.
+    %% roles/staff_assignments, addressed-request routing, rejection audit and saved forecast records.
     %% Original table order follows the image from top to bottom.
     %% Mermaid controls final node positions, so it may route the same
     %% relationships differently from the draw.io layout.
@@ -24,9 +24,16 @@ erDiagram
         string requester_contact
         string status
         datetime submitted_at
+        bigint addressed_bank_id FK
+        datetime matched_at
+        string matching_policy_version
         bigint accepted_bank_id FK "nullable"
         bigint accepted_by_staff_id FK "nullable"
         datetime accepted_at "nullable"
+        bigint rejected_by_staff_id FK "nullable for automatic rejection"
+        datetime rejected_at "nullable"
+        string rejection_reason "nullable"
+        string rejection_source "nullable; manual or automatic"
     }
 
     hospitals {
@@ -185,7 +192,61 @@ erDiagram
         datetime assessed_at
     }
 
+    forecast_runs {
+        bigint id PK
+        bigint blood_bank_id FK
+        bigint requested_by_staff_id FK
+        string status
+        string idempotency_key
+        string input_fingerprint
+        datetime requested_at
+        datetime started_at "nullable"
+        datetime completed_at "nullable"
+        datetime as_of
+        string timezone
+        date history_start "nullable until snapshot validation"
+        date history_end
+        date data_complete_through "nullable until completeness validation"
+        date forecast_start
+        int horizon_days
+        string target_definition_version
+        string dataset_version "nullable until snapshot validation"
+        string feature_version
+        string attribution_version
+        string model_version
+        string model_artifact_reference
+        string model_checksum
+        string snapshot_reference "nullable until snapshot creation"
+        string snapshot_checksum "nullable until snapshot creation"
+        string evaluation_report_reference "nullable before validation; approved evaluation required for production publication"
+        json parameters
+        json result_manifest
+        json coverage
+        json quality_flags
+        string error_code "nullable"
+        string error_message "nullable"
+    }
+
+    demand_forecasts {
+        bigint id PK
+        bigint forecast_run_id FK
+        string component_type
+        string abo_group
+        string rh_factor
+        date forecast_date
+        decimal predicted_units
+        decimal p10_units "nullable when no validated interval exists"
+        decimal p50_units "nullable when no validated interval exists"
+        decimal p90_units "nullable when no validated interval exists"
+        string method
+        string result_status
+        string reason_code "nullable"
+        json quality_flags
+        datetime generated_at
+    }
+
     hospitals ||--o{ requests : creates
+    blood_banks ||--o{ requests : receives_addressed
     blood_banks |o--o{ requests : accepts
     staff_accounts ||--o{ requests : submits
     requests ||--o{ request_allocations : has
@@ -208,11 +269,15 @@ erDiagram
     blood_banks |o--o{ staff_assignments : scopes
     hospitals |o--o{ staff_assignments : scopes
 
+    blood_banks ||--o{ forecast_runs : owns
+    staff_accounts ||--o{ forecast_runs : requests
+    forecast_runs ||--o{ demand_forecasts : contains
+
     %% Several staff actor FKs share one line per table pair:
     %% staff_assignments.assigned_by_staff_id and removed_by_staff_id;
     %% blood_units.started_by_staff_id, completed_by_staff_id,
     %% separated_by_staff_id; requests.submitted_by_staff_id and
-    %% accepted_by_staff_id. No second line is drawn for those pairs.
+    %% accepted_by_staff_id and rejected_by_staff_id. No extra staff line is drawn for those pairs.
     %% donations.status: Pending, assessment_deferred, Eligible,
     %% Collecting, Collected, collection_failed, quarantine,
     %% separation_failed, Finalized, or lab_failed.
@@ -238,3 +303,43 @@ erDiagram
     %% one hospital. Removed assignments no longer grant access.
     %% Request acceptance allocates the full exact-match quantity
     %% from one bank in a single transaction.
+
+    %% Requirement reconciliation, 27 October 2026:
+    %% Every submitted request retains one addressed_bank_id and the submission match snapshot.
+    %% accepted_bank_id keeps its original meaning and must equal addressed_bank_id when accepted.
+    %% Match searches are transient; no-match/cancelled searches create no submitted request.
+    %% component_type, ABO/Rh and the full quantity must match current available stock at one nearest bank.
+    %% Once submitted, addressed bank, submitted_at, component/group and quantity remain original facts.
+    %% Request editing/rerouting/correction policies are not introduced by this revision.
+    %% Only pending requests may be decided. Accepted requests have acceptance actor/time and no rejection fields.
+    %% Rejected requests have rejected_at, rejection_source and rejection_reason; manual rejection also requires an actor.
+    %% Automatic rejection has rejection_source=automatic and rejected_by_staff_id=null, never a fabricated staff account.
+    %% Pending requests have neither acceptance nor rejection audit values.
+    %% Acceptance rechecks stock and reserves exactly quantity_units atomically; no partial reservations.
+    %% In that decision transaction, reevaluate similar pending requests at the addressed bank;
+    %% reject insufficient requests automatically and leave sufficiently supplied requests pending.
+    %% Pending-request and expiry notices are bank-scoped read projections of these durable records.
+    %% Expiry notices select expired, undisposed components; request notices select pending addressed requests.
+    %% No notice/read-receipt table or external messaging provider is implied; delivery history is not required here.
+    %% is_available must check current expiry even if the expiry-monitor task or notice publication fails.
+    %% Forecast runs belong to one bank; component/group series are identified in result_manifest and point fields.
+    %% Forecast bank attribution uses addressed_bank_id at submitted_at, including later rejected requests.
+    %% Historical attribution requires reliable evidence; accepted_bank_id or today's nearest bank is not a substitute.
+    %% Each run freezes its cutoff, original submission snapshot, completeness, versions and artifact references.
+    %% Forecast snapshots contain authorized aggregates, not patient references, donor records or credentials.
+    %% forecast_runs.status: queued, running, succeeded, partial, or failed.
+    %% Unique forecast run key: (blood_bank_id, requested_by_staff_id, idempotency_key).
+    %% An existing idempotency key with a different input_fingerprint is a conflict, not a new run.
+    %% Unique demand point key: (forecast_run_id, component_type, abo_group, rh_factor, forecast_date).
+    %% A daily point has finite nonnegative predicted_units: expected new submitted-request units, not stock.
+    %% result_status is ok or fallback. Unavailable series have no fabricated zero points;
+    %% their status/reason is retained in result_manifest, including runs with no successful points.
+    %% Optional p10/p50/p90 are all null unless validated; otherwise require nonnegative ordered quantiles.
+    %% Published succeeded/partial results and their provenance are immutable. Regeneration creates a new run.
+    %% A queued/running/failed run may have zero points; no failed run is presented as a saved successful forecast.
+    %% FR-22 retrieves the selected saved result without recomputation or substitution.
+    %% Forecast generation never reserves inventory or changes request decisions.
+    %% Offline synchronization remains a separate architecture design; completeness watermarks do not implement sync.
+    %% Snapshot-dependent fields may be null while queued/preparing or when preparation fails.
+    %% Succeeded/partial publication requires complete dataset/snapshot identifiers, checksums,
+    %% actual history window and completeness watermark. Never use placeholder provenance values.
