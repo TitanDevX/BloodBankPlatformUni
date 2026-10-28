@@ -1,0 +1,86 @@
+@startuml
+title FR-02 - Register Hospital - Sequence Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+
+actor "Network Administrator" as Admin
+
+box "Client"
+  boundary "HospitalRegistrationPage" as Page
+end box
+
+box "Server — Organizations"
+  control "HospitalController\nPresentation" as Controller
+  control "HospitalService\nBusiness Logic" as Service
+  entity "HospitalModel\nData Access" as Model
+end box
+
+database "Database" as DB
+
+Admin -> Page : openRegistrationPage()
+activate Page
+Page -> Page : displayRegistrationFields()
+deactivate Page
+
+Admin -> Page : enterHospitalDetails(hospitalDetails,\nlocation, contactInfo)
+activate Page
+deactivate Page
+
+alt Submit selected
+  Admin -> Page : submitRegistration()
+  activate Page
+
+  Page -> Controller : registerHospital(registrationData)
+  activate Controller
+
+  Controller -> Service : registerHospital(registrationData)
+  activate Service
+
+  Service -> Service : validateRegistrationData(registrationData)
+  activate Service
+  Service --> Service : validationResult
+  deactivate Service
+
+  alt Data valid and complete
+    Service -> Model : createHospital(registrationData)
+    activate Model
+
+    Model -> DB : insertHospital(registrationData)
+    activate DB
+    DB --> Model : hospitalRecord
+    deactivate DB
+
+    Model --> Service : hospitalRecord
+    deactivate Model
+
+  else Data missing or invalid
+    Service -> Service : identifyFieldsToCorrect(validationResult)
+    activate Service
+    Service --> Service : fieldsToCorrect
+    deactivate Service
+  end
+
+  Service --> Controller : registrationResult
+  deactivate Service
+
+  Controller --> Page : registrationResult
+  deactivate Controller
+
+  alt Registration successful
+    Page -> Page : displayRegistrationConfirmation()
+
+  else Data missing or invalid
+    Page -> Page : requestDataCorrections(\nregistrationResult.fieldsToCorrect)
+  end
+
+  deactivate Page
+
+else Registration cancelled before saving
+  Admin -> Page : cancelRegistration()
+  activate Page
+  deactivate Page
+end
+
+@enduml

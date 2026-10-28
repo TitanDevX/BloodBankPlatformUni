@@ -1,0 +1,36 @@
+@startuml
+title FR-03 - View Staff Accounts - Activity Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam conditionStyle InsideDiamond
+
+|Network Administrator|
+start
+:Request the staff account list;
+
+|Server — Accounts|
+:Check the permitted viewing scope;
+:Retrieve account details, roles,\nand organization assignments\nwithin the permitted scope;
+
+if (Retrieval successful?) then ([Yes])
+
+  if (Accounts found?) then ([Yes])
+    |Client|
+    :Display account details, roles,\nand organization assignments;
+    stop
+
+  else ([No])
+    |Client|
+    :Display an empty staff account list;
+    :Display an appropriate no-accounts message;
+    stop
+  endif
+
+else ([No])
+  |Client|
+  :Report a loading failure;
+  stop
+endif
+
+@enduml

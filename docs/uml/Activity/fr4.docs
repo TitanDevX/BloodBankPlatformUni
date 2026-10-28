@@ -1,0 +1,55 @@
+@startuml
+title FR-04 - Update Staff Account - Activity Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam conditionStyle InsideDiamond
+
+|Network Administrator|
+start
+:Select the staff account;
+
+|Server — Accounts|
+:Retrieve the selected account's current details;
+
+if (Account exists?) then ([Yes])
+  |Client|
+  :Display the current account details;
+
+  |Network Administrator|
+  :Change the permitted fields;
+
+  if (Cancel before saving?) then ([Yes])
+    :Cancel the update;
+    stop
+
+  else ([No])
+    :Click the save button;
+
+    |Server — Accounts|
+    :Validate the data and role compatibility\nwith the organization assignment;
+
+    if (Data valid and role compatible\nwith the organization assignment?) then ([Yes])
+      :Save the approved account changes;
+
+      |Client|
+      :Display the updated account details;
+      stop
+
+    else ([No])
+      |Server — Accounts|
+      :Reject the update;
+
+      |Client|
+      :Display the rejection reason;
+      stop
+    endif
+  endif
+
+else ([No])
+  |Client|
+  :Explain that the account does not exist;
+  stop
+endif
+
+@enduml

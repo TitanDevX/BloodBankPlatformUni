@@ -1,0 +1,43 @@
+@startuml
+title FR-01 - Register Blood Bank - Activity Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam conditionStyle InsideDiamond
+
+|Network Administrator|
+start
+:Request registration of a blood bank;
+
+|Client|
+:Display the required registration fields;
+
+|Network Administrator|
+:Enter bank details, location,\nand approved contact information;
+
+if (Administrator action?) then ([Submit])
+  :Click the submit button;
+
+  |Server — Organizations|
+  :Check that the data is valid and complete;
+
+  if (Data valid\nand complete?) then ([Yes])
+    :Save the blood bank record;
+
+    |Client|
+    :Display registration confirmation;
+    stop
+
+  else ([No])
+    |Client|
+    :Display the fields requiring correction;
+    stop
+  endif
+
+else ([Cancel])
+  |Network Administrator|
+  :Cancel registration before saving;
+  stop
+endif
+
+@enduml
