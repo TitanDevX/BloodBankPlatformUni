@@ -1,6 +1,7 @@
-# Only these project folders and this ignore file belong in the repository.
+# Only these project folders, the report, and this ignore file belong in the repository.
 /*
 !/.gitignore
+!/report_first_part.docx
 !/docs/
 !/frontend/
 !/backend/
