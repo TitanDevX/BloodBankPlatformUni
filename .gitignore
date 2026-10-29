@@ -1,5 +1,6 @@
 # Only these project folders, the report, and this ignore file belong in the repository.
 /*
+/draft/
 !/.gitignore
 !/report_first_part.docx
 !/docs/
