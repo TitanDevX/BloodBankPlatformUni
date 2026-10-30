@@ -1,0 +1,59 @@
+@startuml
+title FR-11 - Register Donation Attempt - Activity Diagram
+skinparam monochrome true
+skinparam shadowing false
+skinparam conditionStyle InsideDiamond
+
+|Receptionist|
+start
+:Open the donor profile;
+:Click the submit button;
+
+|Server — Donors|
+:Retrieve the selected donor profile;
+
+|Server — Donations|
+:Check the donor profile and operation scope;
+
+if (Profile exists and\noperation is permitted?) then (Yes)
+  :Check whether the same donor has an attempt\nin the initial screening queue;
+
+  if (Existing queued\nattempt found?) then (Yes)
+    |Client|
+    :Display the existing attempt identifier\nand status within the permitted scope;
+    :Allow the existing attempt to be opened;
+    stop
+
+  else (No)
+    |Server — Donations|
+    :Create the donation attempt\nand link it to the donor;
+
+    if (Attempt created?) then (Yes)
+      :Assign a unique identifier;
+      :Place the attempt in the\ninitial screening queue;
+
+      if (Creation and queue\nplacement completed?) then (Yes)
+        |Client|
+        :Display the registration confirmation\nand attempt identifier;
+        stop
+
+      else (No)
+        |Client|
+        :Display that registration could not be completed\nand show the problem details;
+        stop
+      endif
+
+    else (No)
+      |Client|
+      :Display that registration could not be completed\nand show the problem details;
+      stop
+    endif
+  endif
+
+else (No)
+  |Client|
+  :Display that registration could not be completed\nand show the problem details;
+  stop
+endif
+
+@enduml

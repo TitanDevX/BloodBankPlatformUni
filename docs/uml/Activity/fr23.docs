@@ -1,0 +1,45 @@
+@startuml
+title FR-23 - Receive Component Expiry Notice - Activity Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam conditionStyle InsideDiamond
+
+|Server — Inventory|
+start
+:Monitor component expiry using\nthe approved operating mechanism;
+
+:Read undisposed components with\ntheir expiry data and blood bank links;
+
+:Validate expiry data and identify\nconfirmed expired components;
+
+if (Missing or invalid expiry data found?) then (Yes)
+  :Handle the expiry-data problem\nwithout claiming confirmed expiry\nfor those records;
+endif
+
+if (Any confirmed expired components?) then (Yes)
+
+  while (Another confirmed expired component?) is (Yes)
+    :Ensure the component is unavailable\nfor allocation;
+
+    :Create a notice identifying\nthe component and its blood bank;
+
+    if (Notice creation succeeded?) then (Yes)
+      :Make the notice accessible to\nauthorized inventory staff at that bank;
+
+      if (Notice availability failed?) then (Yes)
+        :Handle the availability failure\nwhile keeping the component unavailable;
+      endif
+
+    else (No)
+      :Handle the notice creation failure\nwhile keeping the component unavailable;
+    endif
+
+  endwhile (No)
+
+else (No)
+  :Complete the check without issuing\na new expiry notice for this run;
+endif
+
+stop
+@enduml

@@ -1,0 +1,102 @@
+@startuml
+title FR-12 - Print Donation Visit Ticket - Sequence Diagram
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+
+actor Receptionist
+
+box "Client"
+  boundary "DonationVisitTicketPage" as Page
+end box
+
+box "Server — Donations"
+  control "DonationVisitTicketController\nPresentation" as TicketController
+  control "DonationVisitTicketService\nBusiness Logic" as TicketService
+  entity "DonationAttemptModel\nData Access" as AttemptModel
+end box
+
+database Database as DB
+participant Printer
+
+Receptionist -> Page : selectDonationAttempt(selectedAttemptId)
+activate Page
+deactivate Page
+
+opt Ticket requested
+
+  Receptionist -> Page : clickPrintButton()
+  activate Page
+
+  Page -> TicketController : prepareDonationVisitTicket(selectedAttemptId)
+  activate TicketController
+
+  TicketController -> TicketService : prepareDonationVisitTicket(selectedAttemptId)
+  activate TicketService
+
+  TicketService -> AttemptModel : getAttemptIdentifier(selectedAttemptId)
+  activate AttemptModel
+
+  AttemptModel -> DB : readDonationAttemptIdentifier(selectedAttemptId)
+  activate DB
+  DB --> AttemptModel : attemptLookupResult
+  deactivate DB
+
+  AttemptModel --> TicketService : attemptLookupResult
+  deactivate AttemptModel
+
+  alt Donation attempt exists
+
+    TicketService -> TicketService : prepareTicketAndBarcode(attemptLookupResult.attemptId)
+    activate TicketService
+    TicketService --> TicketService : ticketResult
+    deactivate TicketService
+
+  else Donation attempt does not exist
+
+    TicketService -> TicketService : buildAttemptNotFoundResult()
+    activate TicketService
+    TicketService --> TicketService : ticketResult
+    deactivate TicketService
+
+  end
+
+  TicketService --> TicketController : ticketResult
+  deactivate TicketService
+
+  TicketController --> Page : ticketResult
+  deactivate TicketController
+
+  alt Ticket prepared
+
+    Page -> Printer : printTicket(ticketResult.ticket)
+    activate Printer
+    Printer --> Page : printingResult
+    deactivate Printer
+
+    opt Printing failed
+
+      Page -> Page : displayPrintingFailure(printingResult.problemDetails)
+      activate Page
+      deactivate Page
+
+    end
+
+  else Donation attempt does not exist
+
+    Page -> Page : displayAttemptNotFound()
+    activate Page
+    deactivate Page
+
+  else Ticket preparation failed
+
+    Page -> Page : displayTicketPreparationFailure(ticketResult.problemDetails)
+    activate Page
+    deactivate Page
+
+  end
+
+  deactivate Page
+end
+
+@enduml

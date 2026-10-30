@@ -1,0 +1,88 @@
+@startuml
+title FR-18 - Submit Blood Component Request - Activity Diagram
+skinparam monochrome true
+skinparam shadowing false
+skinparam conditionStyle InsideDiamond
+
+|Hospital Staff|
+start
+:Open the blood component request form;
+
+|Client|
+:Display the required request fields;
+
+|Hospital Staff|
+:Enter patient details or reference,\ncomponent, ABO/Rh, quantity,\nand other required information;
+:Request a match under FR-19;
+
+repeat
+  |Server — Requests|
+  :Validate the current request data\nand hospital scope;
+
+  if (Data and hospital\nscope valid?) then (Yes)
+    |Server — Inventory|
+    :Find a match under FR-19\nusing current stock;
+
+    |Client|
+    :Replace the displayed match\nwith the current result;
+
+    if (Bank matched?) then (Yes)
+      :Display the matched bank\nand Submit and Retry buttons;
+
+    else (No)
+      if (No eligible match found?) then (Yes)
+        :Display No Match\nand the Retry button;
+      else (Cannot determine)
+        :Explain the matching problem\nand display Retry;
+      endif
+    endif
+
+  else (No)
+    |Client|
+    :Clear the displayed match\nand identify required corrections;
+  endif
+
+  |Hospital Staff|
+  while (Matched bank displayed\nand staff chooses Submit?) is (Yes)
+    :Review the details and displayed bank;
+    :Click the submit button;
+
+    |Server — Requests|
+    :Recheck current data validity\nand hospital authority;
+
+    if (Current data and\nauthority valid?) then (Yes)
+      |Server — Inventory|
+      :Reverify the displayed bank\nagainst the current match under FR-19;
+
+      if (Displayed bank remains\na valid current match?) then (Yes)
+        |Server — Requests|
+        :Save a Pending request linked to\nthe patient, authorized hospital,\nand displayed bank;
+        :Make request details available as a notification\nto authorized inventory staff\nat the addressed bank;
+
+        |Client|
+        :Display submission confirmation\nand request status Pending;
+        stop
+
+      else (No)
+        |Client|
+        :Clear the displayed match;
+        :Explain that the match changed\nor could not be reverified and offer Retry;
+      endif
+
+    else (No)
+      |Client|
+      :Reject submission and\nidentify required corrections;
+    endif
+
+    |Hospital Staff|
+  endwhile (No)
+
+  if (Staff cancels before submission?) then (Yes)
+    :Cancel the request entry;
+    stop
+  endif
+
+repeat while (Staff clicks Retry?) is (Yes)
+
+stop
+@enduml

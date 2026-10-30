@@ -1,0 +1,205 @@
+@startuml
+title FR-13 - Record Eligibility Decision - Sequence Diagram
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+
+actor "Donor Screener" as Screener
+
+box "Client"
+  boundary "EligibilityDecisionPage" as Page
+end box
+
+box "Server — Donations"
+  control "EligibilityDecisionController\nPresentation" as DecisionController
+  control "EligibilityDecisionService\nBusiness Logic" as DecisionService
+  entity "DonationAttemptModel\nData Access" as AttemptModel
+end box
+
+database Database as DB
+
+alt Open from the screening queue
+  Screener -> Page : openAttemptFromScreeningQueue(attemptId)
+else Open by scanning the ticket
+  Screener -> Page : scanTicket(attemptBarcode)
+end
+
+activate Page
+
+Page -> Page : resolveSelectedAttemptIdentifier()
+activate Page
+Page --> Page : attemptId
+deactivate Page
+
+Page -> DecisionController : getScreeningAttemptContext(attemptId)
+activate DecisionController
+
+DecisionController -> DecisionService : getScreeningAttemptContext(attemptId)
+activate DecisionService
+
+DecisionService -> AttemptModel : getAttemptWithDonorReference(attemptId)
+activate AttemptModel
+
+AttemptModel -> DB : readAttemptAndDonorReference(attemptId)
+activate DB
+DB --> AttemptModel : screeningContext
+deactivate DB
+
+AttemptModel --> DecisionService : screeningContext
+deactivate AttemptModel
+
+DecisionService --> DecisionController : screeningContext
+deactivate DecisionService
+
+DecisionController --> Page : screeningContext
+deactivate DecisionController
+
+Page -> Page : displayAttempt(screeningContext)
+activate Page
+deactivate Page
+
+deactivate Page
+
+Screener -> Page : confirmCorrectDonor()
+activate Page
+deactivate Page
+
+Screener -> Page : reviewPredonationAssessment()
+activate Page
+deactivate Page
+
+alt Eligible selected
+  Screener -> Page : recordEligibleDecision(screeningDetails)
+  activate Page
+  deactivate Page
+
+else Deferred selected
+  Screener -> Page : recordDeferredDecision(screeningDetails, reason)
+  activate Page
+  deactivate Page
+end
+
+Screener -> Page : saveEligibilityDecision()
+activate Page
+
+Page -> DecisionController : recordEligibilityDecision(attemptId, decisionData)
+activate DecisionController
+
+DecisionController -> DecisionService : recordEligibilityDecision(attemptId, decisionData)
+activate DecisionService
+
+DecisionService -> AttemptModel : getCurrentAttemptState(attemptId)
+activate AttemptModel
+
+AttemptModel -> DB : readCurrentAttemptState(attemptId)
+activate DB
+DB --> AttemptModel : attemptState
+deactivate DB
+
+AttemptModel --> DecisionService : attemptState
+deactivate AttemptModel
+
+DecisionService -> DecisionService : validateDecisionCompletenessAndState(\nattemptState, decisionData)
+activate DecisionService
+DecisionService --> DecisionService : validationResult
+deactivate DecisionService
+
+alt Required information complete, reason provided if Deferred, and attempt state permits a decision
+
+  alt Eligible selected
+
+    DecisionService -> AttemptModel : saveEligibleDecision(\nattemptId, decisionData.screeningDetails)
+    activate AttemptModel
+
+    AttemptModel -> DB : writeEligibilityDecision(\nattemptId, "Eligible", decisionData.screeningDetails)
+    activate DB
+    DB --> AttemptModel : recordedDecision
+    deactivate DB
+
+    AttemptModel --> DecisionService : recordedDecision
+    deactivate AttemptModel
+
+    DecisionService -> AttemptModel : moveToCollectionQueue(attemptId)
+    activate AttemptModel
+
+    AttemptModel -> DB : saveCollectionQueuePlacement(attemptId)
+    activate DB
+    DB --> AttemptModel : collectionQueueStatus
+    deactivate DB
+
+    AttemptModel --> DecisionService : collectionQueueStatus
+    deactivate AttemptModel
+
+    DecisionService -> DecisionService : buildRecordedDecisionResult(\nrecordedDecision, collectionQueueStatus)
+    activate DecisionService
+    DecisionService --> DecisionService : decisionResult
+    deactivate DecisionService
+
+  else Deferred selected
+
+    DecisionService -> AttemptModel : saveDeferredDecision(\nattemptId, decisionData.screeningDetails, decisionData.reason)
+    activate AttemptModel
+
+    AttemptModel -> DB : writeEligibilityDecision(\nattemptId, "Deferred", decisionData.screeningDetails, decisionData.reason)
+    activate DB
+    DB --> AttemptModel : recordedDecision
+    deactivate DB
+
+    AttemptModel --> DecisionService : recordedDecision
+    deactivate AttemptModel
+
+    DecisionService -> AttemptModel : closeAttempt(attemptId)
+    activate AttemptModel
+
+    AttemptModel -> DB : saveClosedAttemptState(attemptId)
+    activate DB
+    DB --> AttemptModel : closedStatus
+    deactivate DB
+
+    AttemptModel --> DecisionService : closedStatus
+    deactivate AttemptModel
+
+    DecisionService -> DecisionService : buildRecordedDecisionResult(\nrecordedDecision, closedStatus)
+    activate DecisionService
+    DecisionService --> DecisionService : decisionResult
+    deactivate DecisionService
+
+  end
+
+else Required information missing, required deferral reason missing, or attempt state disallows a decision
+
+  DecisionService -> DecisionService : buildDecisionRejectionResult(validationResult.reasons)
+  activate DecisionService
+  DecisionService --> DecisionService : decisionResult
+  deactivate DecisionService
+
+end
+
+DecisionService --> DecisionController : decisionResult
+deactivate DecisionService
+
+DecisionController --> Page : decisionResult
+deactivate DecisionController
+
+alt Eligible decision recorded
+
+  Page -> Page : displayRecordedDecisionAndQueueStatus(\ndecisionResult.decision, decisionResult.status)
+  activate Page
+  deactivate Page
+
+else Deferred decision recorded
+
+  Page -> Page : displayRecordedDecisionAndClosedStatus(\ndecisionResult.decision, decisionResult.status)
+  activate Page
+  deactivate Page
+
+else Decision rejected
+
+  Page -> Page : displayDecisionRejection(decisionResult.reasons)
+  activate Page
+  deactivate Page
+
+end
+
+deactivate Page
+@enduml

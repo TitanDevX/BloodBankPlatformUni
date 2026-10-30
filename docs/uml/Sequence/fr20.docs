@@ -1,0 +1,301 @@
+@startuml
+title FR-20 - Decide Hospital Request - Sequence Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+
+actor "Hospital Staff" as HospitalStaff
+actor "Inventory Staff" as InventoryStaff
+
+box "Client"
+  boundary "BloodComponentRequestPage" as HospitalPage
+  boundary "BankRequestDecisionPage" as DecisionPage
+end box
+
+box "Server — Requests"
+  control "BloodRequestController\nPresentation" as RequestController
+  control "BloodRequestService\nBusiness Logic" as RequestService
+  entity "BloodRequestModel\nData Access" as RequestModel
+end box
+
+box "Server — Inventory"
+  control "InventoryAllocationService\nBusiness Logic" as AllocationService
+  entity "InventoryModel\nData Access" as InventoryModel
+end box
+
+database Database as DB
+
+ref over HospitalStaff, RequestModel : FR-18 / FR-19 - Enter data, display the matched bank with Submit/Retry,\nRetry if chosen, submit a Pending request and expose its bank notification
+
+InventoryStaff -> DecisionPage : openRequestNotification(requestId)
+activate DecisionPage
+
+DecisionPage -> RequestController : getRequestDecisionView(requestId)
+activate RequestController
+
+RequestController -> RequestService : getRequestDecisionView(requestId, bankContext)
+activate RequestService
+
+RequestService -> RequestModel : readRequestAndSimilarPendingRequests(requestId, bankContext)
+activate RequestModel
+
+RequestModel -> DB : readRequestAndSimilarPendingRequestsAtBank(requestId, bankContext.bankId)
+activate DB
+DB --> RequestModel : decisionView
+deactivate DB
+
+RequestModel --> RequestService : decisionView
+deactivate RequestModel
+
+RequestService --> RequestController : decisionView
+deactivate RequestService
+
+RequestController --> DecisionPage : decisionView
+deactivate RequestController
+
+DecisionPage -> DecisionPage : displayRequestAndSimilarPendingRequests(decisionView)
+deactivate DecisionPage
+
+opt Similar requests arrived concurrently
+  InventoryStaff -> DecisionPage : chooseRequestForDecision(selectedRequestId)
+  activate DecisionPage
+  DecisionPage -> DecisionPage : displaySelectedRequestDetails(selectedRequestId)
+  deactivate DecisionPage
+end
+
+alt Accept selected
+  InventoryStaff -> DecisionPage : clickAcceptButton(selectedRequestId)
+else Reject selected
+  InventoryStaff -> DecisionPage : clickRejectButton(selectedRequestId)
+end
+
+activate DecisionPage
+
+DecisionPage -> RequestController : decideHospitalRequest(selectedRequestId, decision)
+activate RequestController
+
+RequestController -> RequestService : decideHospitalRequest(selectedRequestId, decision, bankContext)
+activate RequestService
+
+critical One atomic decision across Requests and Inventory
+
+  RequestService -> RequestModel : beginAtomicDecisionAndReadRequest(selectedRequestId, bankContext)
+  activate RequestModel
+
+  RequestModel -> DB : beginDecisionAndReadCurrentRequest(selectedRequestId, bankContext.bankId)
+  activate DB
+  DB --> RequestModel : decisionContext, currentRequest
+  deactivate DB
+
+  RequestModel --> RequestService : decisionContext, currentRequest
+  deactivate RequestModel
+
+  alt Request state changed or request is no longer Pending
+
+    RequestService -> RequestService : flagDecisionConflict(decisionContext)
+
+  else Request is still Pending at the addressed bank
+
+    alt Manual Reject selected
+
+      RequestService -> RequestModel : stageManualRejection(currentRequest.id, bankContext.actorId, decisionContext)
+      activate RequestModel
+
+      RequestModel -> DB : stageRejectedIfPendingOrFlagConflict(\ncurrentRequest.id, manualDecision, bankContext.actorId, decisionContext)
+      activate DB
+      DB --> RequestModel : rejectionStageResult
+      deactivate DB
+
+      RequestModel --> RequestService : rejectionStageResult
+      deactivate RequestModel
+
+    else Accept selected
+
+      RequestService -> AllocationService : prepareFullQuantityAllocation(currentRequest, decisionContext)
+      activate AllocationService
+
+      AllocationService -> InventoryModel : readEligibleExactUnitsForDecision(currentRequest, decisionContext)
+      activate InventoryModel
+
+      InventoryModel -> DB : readCurrentEligibleUnallocatedExactUnits(\ncurrentRequest.addressedBankId, currentRequest.component, currentRequest.aboRh, decisionContext)
+      activate DB
+      DB --> InventoryModel : eligibleUnits
+      deactivate DB
+
+      InventoryModel --> AllocationService : eligibleUnits
+      deactivate InventoryModel
+
+      AllocationService -> AllocationService : selectFullQuantityOrReportInsufficient(eligibleUnits, currentRequest.quantity)
+      activate AllocationService
+      AllocationService --> AllocationService : allocationPlan
+      deactivate AllocationService
+
+      AllocationService --> RequestService : allocationPlan
+      deactivate AllocationService
+
+      alt Full quantity is available
+
+        RequestService -> AllocationService : stageFullReservation(\ncurrentRequest.id, allocationPlan.unitIds, currentRequest.quantity, decisionContext)
+        activate AllocationService
+
+        AllocationService -> InventoryModel : stageFullReservationOrFlagConflict(\ncurrentRequest.id, allocationPlan.unitIds, currentRequest.quantity, decisionContext)
+        activate InventoryModel
+
+        InventoryModel -> DB : stageFullEligibleUnallocatedReservationOrFlagConflict(\ncurrentRequest.id, allocationPlan.unitIds, currentRequest.quantity, decisionContext)
+        activate DB
+        DB --> InventoryModel : reservationStageResult
+        deactivate DB
+
+        InventoryModel --> AllocationService : reservationStageResult
+        deactivate InventoryModel
+
+        AllocationService --> RequestService : reservationStageResult
+        deactivate AllocationService
+
+        opt Full reservation staged without conflict
+
+          RequestService -> RequestModel : stageAcceptance(currentRequest.id, bankContext, decisionContext)
+          activate RequestModel
+
+          RequestModel -> DB : stageAcceptedIfPendingOrFlagConflict(\ncurrentRequest.id, currentRequest.addressedBankId, bankContext.actorId, decisionContext)
+          activate DB
+          DB --> RequestModel : acceptanceStageResult
+          deactivate DB
+
+          RequestModel --> RequestService : acceptanceStageResult
+          deactivate RequestModel
+
+          opt Acceptance staged without conflict
+
+            RequestService -> RequestModel : readSimilarPendingRequestsAtBank(currentRequest, decisionContext)
+            activate RequestModel
+
+            RequestModel -> DB : readSimilarPendingRequestsAtBank(\ncurrentRequest.addressedBankId, currentRequest.component,\ncurrentRequest.aboRh, currentRequest.quantity, decisionContext)
+            activate DB
+            DB --> RequestModel : similarPendingRequests
+            deactivate DB
+
+            RequestModel --> RequestService : similarPendingRequests
+            deactivate RequestModel
+
+            RequestService -> AllocationService : getRemainingEligibleQuantity(currentRequest, decisionContext)
+            activate AllocationService
+
+            AllocationService -> InventoryModel : countRemainingEligibleExactUnits(currentRequest, decisionContext)
+            activate InventoryModel
+
+            InventoryModel -> DB : countEligibleExactUnitsExcludingStagedReservations(currentRequest, decisionContext)
+            activate DB
+            DB --> InventoryModel : remainingQuantity
+            deactivate DB
+
+            InventoryModel --> AllocationService : remainingQuantity
+            deactivate InventoryModel
+
+            AllocationService --> RequestService : remainingQuantity
+            deactivate AllocationService
+
+            loop Each similar request still Pending at this bank
+
+              opt Remaining quantity cannot fully satisfy this request
+
+                RequestService -> RequestModel : stageAutomaticInsufficientStockRejection(similarRequest.id, decisionContext)
+                activate RequestModel
+
+                RequestModel -> DB : stageAutomaticRejectionIfStillPending(\nsimilarRequest.id, insufficientStock, decisionContext)
+                activate DB
+                DB --> RequestModel : rejectionStageResult
+                deactivate DB
+
+                RequestModel --> RequestService : rejectionStageResult
+                deactivate RequestModel
+
+              end
+            end
+          end
+        end
+
+      else Full quantity is unavailable
+
+        RequestService -> RequestModel : stageAutomaticInsufficientStockRejection(currentRequest.id, decisionContext)
+        activate RequestModel
+
+        RequestModel -> DB : stageRejectedIfPendingOrFlagConflict(\ncurrentRequest.id, insufficientStock, automatic, decisionContext)
+        activate DB
+        DB --> RequestModel : rejectionStageResult
+        deactivate DB
+
+        RequestModel --> RequestService : rejectionStageResult
+        deactivate RequestModel
+
+      end
+    end
+  end
+
+  RequestService -> RequestModel : completeAtomicDecision(decisionContext)
+  activate RequestModel
+
+  RequestModel -> DB : commitAllDecisionChangesOrRollbackConflict(decisionContext)
+  activate DB
+  DB --> RequestModel : decisionResult
+  deactivate DB
+
+  RequestModel --> RequestService : decisionResult
+  deactivate RequestModel
+
+end
+
+opt Atomic decision was not committed because of a concurrent change
+
+  RequestService -> RequestModel : readCurrentRequestAndSimilarPendingRequests(selectedRequestId, bankContext)
+  activate RequestModel
+
+  RequestModel -> DB : readCurrentRequestAndSimilarPendingRequestsAtBank(selectedRequestId, bankContext.bankId)
+  activate DB
+  DB --> RequestModel : currentRequests
+  deactivate DB
+
+  RequestModel --> RequestService : currentRequests
+  deactivate RequestModel
+
+  RequestService -> AllocationService : reevaluateCurrentEligibleStock(currentRequests)
+  activate AllocationService
+
+  AllocationService -> InventoryModel : readCurrentEligibleMatchingStock(currentRequests)
+  activate InventoryModel
+
+  InventoryModel -> DB : readCurrentEligibleUnallocatedExactUnitsForRequests(currentRequests)
+  activate DB
+  DB --> InventoryModel : currentStock
+  deactivate DB
+
+  InventoryModel --> AllocationService : currentStock
+  deactivate InventoryModel
+
+  AllocationService --> RequestService : stockReevaluation
+  deactivate AllocationService
+
+  RequestService -> RequestService : buildConcurrentChangeResultWithoutNewAcceptance(currentRequests, stockReevaluation)
+  activate RequestService
+  RequestService --> RequestService : decisionResult
+  deactivate RequestService
+
+end
+
+RequestService -> RequestService : makeSavedRequestStatusesAvailableToHospital(decisionResult)
+
+RequestService --> RequestController : decisionResult
+deactivate RequestService
+
+RequestController --> DecisionPage : decisionResult
+deactivate RequestController
+
+alt Decision committed
+  DecisionPage -> DecisionPage : displayDecisionAndAffectedRequestStatuses(decisionResult)
+else Concurrent change required reevaluation
+  DecisionPage -> DecisionPage : displayReevaluatedCurrentResult(decisionResult)
+end
+
+deactivate DecisionPage
+@enduml

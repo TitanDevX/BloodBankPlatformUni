@@ -1,0 +1,281 @@
+@startuml
+title FR-16 - Record Processed Blood Components - Sequence Diagram
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+
+actor "Processing Technician" as Technician
+
+box "Client"
+  boundary "BloodProcessingPage" as Page
+end box
+
+box "Server — Donations"
+  control "ProcessingController\nPresentation" as ProcessingController
+  control "ProcessingService\nBusiness Logic" as ProcessingService
+  entity "DonationModel\nData Access" as DonationModel
+end box
+
+box "Server — Inventory"
+  control "ComponentInventoryService\nBusiness Logic" as InventoryService
+  entity "BloodComponentModel\nData Access" as ComponentModel
+end box
+
+database Database as DB
+
+Technician -> Page : openDonationForProcessing(donationId, bagReference)
+activate Page
+
+Page -> ProcessingController : getDonationProcessingContext(donationId)
+activate ProcessingController
+
+ProcessingController -> ProcessingService : getDonationProcessingContext(donationId)
+activate ProcessingService
+
+ProcessingService -> DonationModel : getDonationAndBagContext(donationId)
+activate DonationModel
+
+DonationModel -> DB : readDonationAndBagContext(donationId)
+activate DB
+DB --> DonationModel : donationContext
+deactivate DB
+
+DonationModel --> ProcessingService : donationContext
+deactivate DonationModel
+
+ProcessingService --> ProcessingController : donationContext
+deactivate ProcessingService
+
+ProcessingController --> Page : donationContext
+deactivate ProcessingController
+
+Page -> Page : displayDonationAndBagReference(donationContext)
+activate Page
+deactivate Page
+
+deactivate Page
+
+alt Separation succeeded
+
+  Technician -> Page : recordSuccessfulSeparation()
+  activate Page
+  deactivate Page
+
+  loop Each resulting container
+    Technician -> Page : recordComponentContainer(identifier, componentType,\nvolume, expiry, processingDecision)
+    activate Page
+    deactivate Page
+  end
+
+else Separation failed
+
+  Technician -> Page : recordFailedSeparation(reason)
+  activate Page
+  deactivate Page
+
+end
+
+Technician -> Page : saveProcessingOutcome()
+activate Page
+
+Page -> ProcessingController : recordProcessingOutcome(\ndonationId, bagReference, separationData)
+activate ProcessingController
+
+ProcessingController -> ProcessingService : recordProcessingOutcome(\ndonationId, bagReference, separationData)
+activate ProcessingService
+
+ProcessingService -> DonationModel : getDonationAndBagContext(donationId)
+activate DonationModel
+
+DonationModel -> DB : readDonationAndBagContext(donationId)
+activate DB
+DB --> DonationModel : donationContext
+deactivate DB
+
+DonationModel --> ProcessingService : donationContext
+deactivate DonationModel
+
+ProcessingService -> ProcessingService : validateDonationBagAndOutcome(\ndonationContext, bagReference, separationData)
+activate ProcessingService
+ProcessingService --> ProcessingService : contextValidation
+deactivate ProcessingService
+
+alt Donation and bag valid and separation outcome complete
+
+  alt Separation failed
+
+    ProcessingService -> DonationModel : saveFailedSeparationOutcome(\ndonationId, bagReference, separationData.reason)
+    activate DonationModel
+
+    DonationModel -> DB : writeFailedSeparationOutcome(\ndonationId, bagReference, separationData.reason)
+    activate DB
+    DB --> DonationModel : recordedSeparation
+    deactivate DB
+
+    DonationModel --> ProcessingService : recordedSeparation
+    deactivate DonationModel
+
+    ProcessingService -> ProcessingService : buildFailedSeparationResult(recordedSeparation)
+    activate ProcessingService
+    ProcessingService --> ProcessingService : processingResult
+    deactivate ProcessingService
+
+  else Separation succeeded
+
+    ProcessingService -> InventoryService : validateAllComponentContainers(\ndonationId, bagReference, separationData.components)
+    activate InventoryService
+    InventoryService --> ProcessingService : componentValidation
+    deactivate InventoryService
+
+    alt All container data and links valid
+
+      ProcessingService -> DonationModel : saveSuccessfulSeparationOutcome(\ndonationId, bagReference)
+      activate DonationModel
+
+      DonationModel -> DB : writeSuccessfulSeparationOutcome(donationId, bagReference)
+      activate DB
+      DB --> DonationModel : recordedSeparation
+      deactivate DB
+
+      DonationModel --> ProcessingService : recordedSeparation
+      deactivate DonationModel
+
+      ProcessingService -> InventoryService : recordProcessedComponents(\ndonationId, bagReference, separationData.components)
+      activate InventoryService
+
+      InventoryService -> ComponentModel : saveProcessedComponentContainers(\ndonationId, bagReference, separationData.components)
+      activate ComponentModel
+
+      ComponentModel -> DB : writeComponentContainersAndProcessingDecisions(\ndonationId, bagReference, separationData.components)
+      activate DB
+      DB --> ComponentModel : recordedComponents
+      deactivate DB
+
+      ComponentModel --> InventoryService : recordedComponents
+      deactivate ComponentModel
+
+      InventoryService --> ProcessingService : recordedComponents
+      deactivate InventoryService
+
+      ProcessingService -> DonationModel : getCurrentLaboratoryResult(donationId)
+      activate DonationModel
+
+      DonationModel -> DB : readCurrentLaboratoryResult(donationId)
+      activate DB
+      DB --> DonationModel : laboratoryResult
+      deactivate DB
+
+      DonationModel --> ProcessingService : laboratoryResult
+      deactivate DonationModel
+
+      ProcessingService -> InventoryService : reevaluateComponentAvailability(\ndonationId, laboratoryResult)
+      activate InventoryService
+
+      InventoryService -> ComponentModel : getDonationComponentsWithStockContext(donationId)
+      activate ComponentModel
+
+      ComponentModel -> DB : readDonationComponentsAndStockContext(donationId)
+      activate DB
+      DB --> ComponentModel : components
+      deactivate DB
+
+      ComponentModel --> InventoryService : components
+      deactivate ComponentModel
+
+      loop Each component of the donation
+
+        InventoryService -> InventoryService : evaluateComponentAvailability(component, laboratoryResult)
+        activate InventoryService
+
+        alt Processing decision is Rejected
+          InventoryService --> InventoryService : availability = Unavailable
+
+        else Accepted component and laboratory result is not final
+          InventoryService --> InventoryService : availability = Unavailable
+
+        else Accepted component and final laboratory result failed
+          InventoryService --> InventoryService : availability = Unavailable
+
+        else Accepted, final laboratory result passed, and all stock rules satisfied
+          InventoryService --> InventoryService : availability = Available
+
+        else Accepted, final laboratory result passed, but stock rules not satisfied
+          InventoryService --> InventoryService : availability = Unavailable
+        end
+
+        deactivate InventoryService
+
+        InventoryService -> ComponentModel : saveComponentAvailability(component.identifier, availability)
+        activate ComponentModel
+
+        ComponentModel -> DB : writeComponentAvailability(component.identifier, availability)
+        activate DB
+        DB --> ComponentModel : updatedComponent
+        deactivate DB
+
+        ComponentModel --> InventoryService : updatedComponent
+        deactivate ComponentModel
+
+      end
+
+      InventoryService --> ProcessingService : componentsWithStatuses
+      deactivate InventoryService
+
+      ProcessingService -> ProcessingService : buildSuccessfulSeparationResult(\nrecordedSeparation, componentsWithStatuses)
+      activate ProcessingService
+      ProcessingService --> ProcessingService : processingResult
+      deactivate ProcessingService
+
+    else Container data or links invalid
+
+      ProcessingService -> ProcessingService : buildProcessingRejection(componentValidation)
+      activate ProcessingService
+      ProcessingService --> ProcessingService : processingResult
+      deactivate ProcessingService
+
+    end
+  end
+
+else Donation, bag, or separation outcome invalid
+
+  ProcessingService -> ProcessingService : buildProcessingRejection(contextValidation)
+  activate ProcessingService
+  ProcessingService --> ProcessingService : processingResult
+  deactivate ProcessingService
+
+end
+
+ProcessingService --> ProcessingController : processingResult
+deactivate ProcessingService
+
+ProcessingController --> Page : processingResult
+deactivate ProcessingController
+
+alt Separation outcome recorded
+
+  Page -> Page : displaySeparationResult(processingResult.separationOutcome)
+  activate Page
+  deactivate Page
+
+  opt Successful separation recorded
+    Page -> Page : displayComponentDetailsAndStatuses(processingResult.components)
+    activate Page
+    deactivate Page
+  end
+
+else Processing outcome rejected
+
+  Page -> Page : displayValidationProblems(processingResult.problems)
+  activate Page
+  deactivate Page
+
+  opt Failed separation reason missing
+    Page -> Page : requestFailureReason()
+    activate Page
+    deactivate Page
+  end
+
+end
+
+deactivate Page
+@enduml

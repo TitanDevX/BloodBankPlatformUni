@@ -1,0 +1,52 @@
+@startuml
+title FR-06 - Sign In - Activity Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam conditionStyle InsideDiamond
+
+|Registered User|
+start
+:Open the sign-in page;
+
+|Client|
+:Display the sign-in page;
+
+|Registered User|
+:Enter sign-in credentials;
+
+if (Leave the page\nwithout submitting?) then ([Yes])
+  :Leave the sign-in page;
+  stop
+else ([No])
+  :Click the sign-in button;
+endif
+
+|Server — Accounts|
+if (Authentication service\nunavailable?) then ([Yes])
+  |Client|
+  :Report that sign-in\ncould not be completed;
+  stop
+else ([No])
+endif
+
+|Server — Accounts|
+:Check the credentials\nand account status;
+
+if (Credentials correct and\naccount can sign in?) then ([Yes])
+  :Create a valid authenticated session;
+
+  |Client|
+  :Display the workspace and functions permitted\nby the account, role, and organization;
+  stop
+
+else ([No])
+  |Server — Accounts|
+  :Reject the sign-in request;
+
+  |Client|
+  :Display sign-in rejection;
+  stop
+endif
+
+@enduml

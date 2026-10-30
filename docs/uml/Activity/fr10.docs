@@ -1,0 +1,55 @@
+@startuml
+title FR-10 - Update Donor Profile - Activity Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam conditionStyle InsideDiamond
+
+|Receptionist|
+start
+:Request to edit the donor profile;
+
+|Server — Donors|
+:Retrieve the requested donor profile;
+:Check profile existence and accessibility;
+
+if (Profile exists\nand can be accessed?) then ([Yes])
+  |Client|
+  :Display the current editable\nidentifying and contact details;
+
+  |Receptionist|
+  :Enter the changes;
+
+  if (Cancel before saving?) then ([Yes])
+    :Cancel the edit;
+    stop
+  else ([No])
+    :Click the save button;
+  endif
+
+  |Server — Donors|
+  :Validate profile existence, accessibility,\nand the changed identifying and contact details;
+
+  if (Profile exists, is accessible,\nand changes are valid?) then ([Yes])
+    :Update the identifying and contact details\nof the same donor profile;
+
+    |Client|
+    :Display the updated donor profile;
+    stop
+
+  else ([No])
+    |Server — Donors|
+    :Reject the update;
+
+    |Client|
+    :Explain why the update was rejected;
+    stop
+  endif
+
+else ([No])
+  |Client|
+  :Explain why the profile cannot be edited;
+  stop
+endif
+
+@enduml

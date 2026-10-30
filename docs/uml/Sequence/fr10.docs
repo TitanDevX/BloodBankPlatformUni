@@ -1,0 +1,134 @@
+@startuml
+title FR-10 - Update Donor Profile - Sequence Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+
+actor "Receptionist" as Receptionist
+
+box "Client"
+  boundary "DonorProfileEditPage" as Page
+end box
+
+box "Server — Donors"
+  control "DonorProfileController\nPresentation" as Controller
+  control "DonorProfileService\nBusiness Logic" as Service
+  entity "DonorProfileModel\nData Access" as Model
+end box
+
+database "Database" as DB
+
+Receptionist -> Page : requestProfileEdit(profileId)
+activate Page
+
+Page -> Controller : getEditableDonorProfile(profileId)
+activate Controller
+
+Controller -> Service : getEditableDonorProfile(profileId, currentUser)
+activate Service
+
+Service -> Model : findDonorProfile(profileId)
+activate Model
+
+Model -> DB : readDonorProfile(profileId)
+activate DB
+DB --> Model : profileResult
+deactivate DB
+
+Model --> Service : profileResult
+deactivate Model
+
+Service -> Service : checkProfileForEditing(\nprofileResult, currentUser)
+activate Service
+Service --> Service : profileCheck
+deactivate Service
+
+Service --> Controller : loadResult
+deactivate Service
+
+Controller --> Page : loadResult
+deactivate Controller
+
+alt Profile exists and can be accessed
+  Page -> Page : displayCurrentEditableDetails(\nloadResult.editableDetails)
+
+else Profile missing or inaccessible
+  Page -> Page : displayEditProblem(loadResult.reason)
+end
+
+deactivate Page
+
+opt Profile loaded successfully
+  Receptionist -> Page : enterProfileChanges(\nidentifyingChanges, contactChanges)
+  activate Page
+  deactivate Page
+
+  alt Save selected
+    Receptionist -> Page : saveChanges()
+    activate Page
+
+    Page -> Controller : updateDonorProfile(profileId, changes)
+    activate Controller
+
+    Controller -> Service : updateDonorProfile(\nprofileId, changes, currentUser)
+    activate Service
+
+    Service -> Model : findDonorProfile(profileId)
+    activate Model
+
+    Model -> DB : readDonorProfile(profileId)
+    activate DB
+    DB --> Model : profileResult
+    deactivate DB
+
+    Model --> Service : profileResult
+    deactivate Model
+
+    Service -> Service : validateProfileUpdate(\nprofileResult, changes, currentUser)
+    activate Service
+    Service --> Service : validationResult
+    deactivate Service
+
+    alt Profile exists and is accessible and changes are valid
+      Service -> Model : updateIdentifyingAndContactDetails(\nprofileId, changes)
+      activate Model
+
+      Model -> DB : saveIdentifyingAndContactDetails(\nprofileId, changes)
+      activate DB
+      DB --> Model : updatedProfile
+      deactivate DB
+
+      Model --> Service : updatedProfile
+      deactivate Model
+
+    else Profile missing, inaccessible, or changes invalid
+      Service -> Service : determineUpdateRejectionReason(\nvalidationResult)
+      activate Service
+      Service --> Service : rejectionReason
+      deactivate Service
+    end
+
+    Service --> Controller : updateResult
+    deactivate Service
+
+    Controller --> Page : updateResult
+    deactivate Controller
+
+    alt Update saved
+      Page -> Page : displayUpdatedProfile(updateResult.profile)
+
+    else Update rejected
+      Page -> Page : displayUpdateProblem(updateResult.reason)
+    end
+
+    deactivate Page
+
+  else Edit cancelled before saving
+    Receptionist -> Page : cancelEdit()
+    activate Page
+    deactivate Page
+  end
+end
+
+@enduml

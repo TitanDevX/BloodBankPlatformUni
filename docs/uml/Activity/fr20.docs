@@ -1,0 +1,109 @@
+@startuml
+title FR-20 - Decide Hospital Request - Activity Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam conditionStyle InsideDiamond
+
+|Hospital Staff|
+start
+:Enter request data;
+
+|Client|
+:Display the matched bank and\nSubmit and Retry buttons\nunder FR-18 / FR-19;
+
+|Hospital Staff|
+while (Retry selected\nbefore submission?) is (Yes)
+  :Click the retry button;
+
+  |Server — Inventory|
+  :Reevaluate the match under FR-19;
+
+  |Client|
+  :Display the updated result and\napplicable buttons under FR-19;
+
+  |Hospital Staff|
+endwhile (No)
+
+if (A matched bank is displayed?) then (Yes)
+  |Hospital Staff|
+  :Click the submit button;
+
+  |Server — Requests|
+  :Complete submission under FR-18:\nsave the Pending request and expose\nits notification to bank inventory staff;
+else (No)
+  stop
+endif
+
+|Inventory Staff|
+:Open the request notification;
+
+|Server — Requests|
+:Retrieve the request and similar Pending\nrequests at the same bank;
+
+|Client|
+:Display the request details and\nany similar simultaneous requests;
+
+|Inventory Staff|
+if (Similar requests are displayed?) then (Yes)
+  :Choose the request to decide;
+endif
+
+:Review the selected pending request;
+
+if (Accept is selected?) then (Yes)
+  :Click the accept button;
+else (No)
+  :Click the reject button;
+endif
+
+|Server — Requests and Inventory|
+:Begin one atomic decision and\nread the current request state;
+
+if (The request state has changed\nor it is no longer Pending?) then (Yes)
+  :Flag a concurrent decision conflict;
+
+else (No)
+  if (Reject was selected?) then (Yes)
+    :Stage rejection without\nreserving any units;
+
+  else (No)
+    :Check the current eligible exact-match units\nat the request's addressed bank;
+
+    if (The full quantity is available?) then (Yes)
+      :Stage acceptance and reserve the full\nquantity as specific units within\nthis atomic decision;
+
+      :Read similar Pending requests at this bank\nwith the same component, ABO/Rh and quantity;
+
+      :Determine the remaining eligible quantity\nafter this reservation;
+
+      while (Another similar Pending request?) is (Yes)
+        if (The remaining quantity can\nfully satisfy this request?) then (Yes)
+          :Keep it Pending without\nreserving any units;
+        else (No)
+          :Stage automatic rejection for\ninsufficient stock without a reservation;
+        endif
+      endwhile (No)
+
+    else (No)
+      :Stage rejection of the selected request\nfor insufficient stock without\na partial reservation;
+    endif
+  endif
+endif
+
+:Commit all decision changes together\nonly if the request state and unit\nallocations remain valid;
+
+if (A concurrent conflict was detected?) then (Yes)
+  :Roll back this attempted decision;\nno new acceptance or partial reservation;
+
+  :Reevaluate current request states\nand current eligible matching stock;
+endif
+
+|Server — Requests|
+:Make the saved current request statuses\navailable to hospital staff;
+
+|Client|
+:Display the decision or the reevaluated\ncurrent result to inventory staff;
+
+stop
+@enduml

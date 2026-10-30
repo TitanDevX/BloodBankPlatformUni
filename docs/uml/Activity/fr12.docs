@@ -1,0 +1,52 @@
+@startuml
+title FR-12 - Print Donation Visit Ticket - Activity Diagram
+skinparam monochrome true
+skinparam shadowing false
+skinparam conditionStyle InsideDiamond
+
+|Receptionist|
+start
+:Select the donation attempt;
+
+if (Ticket requested?) then (Yes)
+  :Click the print button;
+
+  |Server — Donations|
+  :Retrieve the selected attempt identifier;
+
+  if (Attempt exists?) then (Yes)
+    :Prepare the ticket and its barcode\nusing the same attempt identifier;
+
+    if (Ticket prepared?) then (Yes)
+      |Client|
+      :Send the ticket to the printer;
+
+      |Printer|
+      :Print the ticket;
+
+      if (Printing succeeded?) then (Yes)
+        stop
+      else (No)
+        |Client|
+        :Explain the printing failure;
+        stop
+      endif
+
+    else (No)
+      |Client|
+      :Explain the ticket preparation failure;
+      stop
+    endif
+
+  else (No)
+    |Client|
+    :Display that the donation attempt does not exist;
+    stop
+  endif
+
+else (No)
+  |Receptionist|
+  stop
+endif
+
+@enduml

@@ -1,0 +1,115 @@
+@startuml
+title FR-09 - Register Donor Profile - Sequence Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+
+actor "Receptionist" as Receptionist
+
+box "Client"
+  boundary "DonorRegistrationPage" as Page
+end box
+
+box "Server — Donors"
+  control "DonorRegistrationController\nPresentation" as Controller
+  control "DonorRegistrationService\nBusiness Logic" as Service
+  entity "DonorProfileModel\nData Access" as Model
+end box
+
+database "Database" as DB
+
+Receptionist -> Page : requestNewDonorRegistration()
+activate Page
+Page -> Page : displayRequiredDonorFields()
+deactivate Page
+
+Receptionist -> Page : enterDonorDetails(\nidentifyingDetails, contactDetails)
+activate Page
+
+Page -> Controller : checkDonorRegistration(donorDetails)
+activate Controller
+
+Controller -> Service : checkDonorRegistration(donorDetails)
+activate Service
+
+Service -> Service : validateDonorDetails(donorDetails)
+activate Service
+Service --> Service : validationResult
+deactivate Service
+
+opt Data complete and valid
+  Service -> Model : findExistingProfile(\ndonorDetails.identifyingDetails)
+  activate Model
+
+  Model -> DB : readExistingDonorProfile(identifyingDetails)
+  activate DB
+  DB --> Model : existingProfile
+  deactivate DB
+
+  Model --> Service : existingProfile
+  deactivate Model
+end
+
+Service --> Controller : registrationCheck
+deactivate Service
+
+Controller --> Page : registrationCheck
+deactivate Controller
+
+opt Data missing or invalid
+  Page -> Page : showRequiredCorrections(\nregistrationCheck.fieldsToCorrect)
+end
+
+opt Data valid and existing profile found
+  Page -> Page : displayExistingProfile(\nregistrationCheck.existingProfile)
+end
+
+deactivate Page
+
+opt Data complete and valid
+  alt Registration cancelled before saving
+    Receptionist -> Page : cancelRegistration()
+    activate Page
+    deactivate Page
+
+  else Registration continues
+    alt Existing profile found
+      Receptionist -> Page : useExistingProfile(\nregistrationCheck.existingProfile.profileId)
+      activate Page
+      deactivate Page
+
+    else No existing profile found
+      Receptionist -> Page : saveDonorProfile()
+      activate Page
+
+      Page -> Controller : registerDonorProfile(donorDetails)
+      activate Controller
+
+      Controller -> Service : registerDonorProfile(donorDetails)
+      activate Service
+
+      Service -> Model : createDonorProfile(donorDetails)
+      activate Model
+
+      Model -> DB : insertDonorProfile(donorDetails)
+      activate DB
+      DB --> Model : donorProfile
+      deactivate DB
+
+      Model --> Service : donorProfile
+      deactivate Model
+
+      Service --> Controller : donorProfile
+      deactivate Service
+
+      Controller --> Page : donorProfile
+      deactivate Controller
+
+      Page -> Page : displayCreatedDonorProfile(donorProfile)
+      deactivate Page
+    end
+  end
+end
+
+@enduml
