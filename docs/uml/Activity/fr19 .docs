@@ -1,0 +1,53 @@
+@startuml
+title FR-19 - View Request Match - Activity Diagram
+skinparam monochrome true
+skinparam shadowing false
+skinparam conditionStyle InsideDiamond
+
+|Hospital Staff|
+start
+:Enter patient, component,\nABO/Rh group, and quantity details;
+:Click the search button;
+
+repeat
+  |Client|
+  :Clear the previous match\nand disable submission;
+
+  |Server — Inventory|
+  :Read current approved, available,\nunexpired, undisposed units of the exact\ncomponent and ABO/Rh group;
+
+  if (Inventory data read\nsuccessfully?) then (Yes)
+    :Exclude banks unable to provide\nthe full quantity by themselves;
+
+    if (Any bank can provide the\nfull exact-match quantity?) then (Yes)
+      |Server — Organizations|
+      :Read the hospital location and\nall qualifying bank locations;
+
+      if (All required location data\ncan be read?) then (Yes)
+        |Server — Inventory|
+        :Select the nearest qualifying bank;
+
+        |Client|
+        :Display the bank and match details\nwith Submit and Retry buttons;
+      else (No)
+        |Client|
+        :Report that a match cannot be determined\nbecause required location data cannot be read;
+        stop
+      endif
+
+    else (No)
+      |Client|
+      :Display a no-match message\nand a Retry button;
+    endif
+
+  else (No)
+    |Client|
+    :Report that a match cannot be determined\nbecause inventory data cannot be read;
+    stop
+  endif
+
+  |Hospital Staff|
+repeat while (Staff clicks the\nRetry button?) is (Yes) not (No)
+
+stop
+@enduml

@@ -1,0 +1,51 @@
+@startuml
+title FR-15 - Finish Blood Collection - Activity Diagram
+skinparam monochrome true
+skinparam shadowing false
+skinparam conditionStyle InsideDiamond
+
+|Collection Staff|
+start
+:Open the attempt in progress;
+
+|Server — Donations|
+:Retrieve the collection attempt context;
+
+|Client|
+:Display the attempt;
+
+|Collection Staff|
+if (Collection outcome?) then (Successful)
+  :Record "Successful collection"\nand the collected volume;
+else (Unsuccessful)
+  :Record the unsuccessful outcome,\ncollected volume, and reason;
+endif
+
+:Click the save button;
+
+|Server — Donations|
+:Validate the collected volume,\nthe reason if collection is unsuccessful,\nand the current attempt state;
+:Check that collection has started\nand no final outcome exists;
+
+if (Data and state valid,\ncollection started,\nand no final outcome exists?) then (Yes)
+
+  if (Collection was successful?) then (Yes)
+    :Save the outcome and volume,\nand link the bag and sample tubes\nto the donation;
+    :Place the donation in quarantine,\nunavailable as stock;
+
+  else (No)
+    :Save the unsuccessful outcome,\nvolume, and reason;
+    :Close the attempt;
+  endif
+
+  |Client|
+  :Display the recorded outcome\nand resulting state;
+  stop
+
+else (No)
+  |Server — Donations|
+  :Reject the new outcome;
+  stop
+endif
+
+@enduml

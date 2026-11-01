@@ -1,0 +1,66 @@
+@startuml
+title FR-17 - Finalize Laboratory Screening - Activity Diagram
+skinparam monochrome true
+skinparam shadowing false
+skinparam conditionStyle InsideDiamond
+
+|Laboratory Technician|
+start
+:Identify the donation;
+
+|Server — Donations|
+:Retrieve the donation, linked samples,\nand any earlier test results;
+
+|Client|
+:Display the donation, sample references,\nand existing results;
+
+|Laboratory Technician|
+:Verify the linked samples;
+:Record or complete ABO/Rh\nand the required test results;
+:Review the results;
+
+if (Final laboratory decision?) then (Cleared)
+  :Select final laboratory clearance;
+else (Failed)
+  :Record the failed laboratory decision\nand its reason;
+endif
+
+:Click the finalize button;
+
+|Server — Donations|
+:Check sample-to-donation links,\nrequired result completeness,\nthe reason if the decision is Failed,\nand any conflicting final decision;
+
+if (Samples match, results complete,\nrequired reason present,\nand no conflicting final decision?) then (Yes)
+  :Save the test results, ABO/Rh,\nand final laboratory decision,\nincluding the reason when Failed;
+  :Retrieve the current recorded\nprocessing completion state;
+
+  |Server — Inventory|
+  :Retrieve all components of the donation\nand their stock context;
+
+  while (Another donation component?) is (Yes)
+
+    if (Laboratory decision is Failed?) then (Yes)
+      :Set the current component to Unavailable;
+
+    else (Cleared)
+      if (Processing complete,\ncomponent accepted,\nand all stock rules satisfied?) then (Yes)
+        :Set the current component to Available;
+      else (No)
+        :Set the current component to Unavailable;
+      endif
+    endif
+
+    :Save the current component availability;
+  endwhile (No)
+
+  |Client|
+  :Display the final laboratory decision\nand component statuses;
+  stop
+
+else (No)
+  |Client|
+  :Explain the finalization rejection;
+  stop
+endif
+
+@enduml

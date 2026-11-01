@@ -1,0 +1,49 @@
+@startuml
+title FR-22 - View Saved Forecast - Activity Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam conditionStyle InsideDiamond
+
+|Blood Bank Administrator|
+start
+:Request saved forecasts;
+
+|Server — Analytics & AI|
+:Retrieve saved forecasts available within\nthe administrator's current scope;
+
+if (The forecast list was\nretrieved successfully?) then (Yes)
+
+  if (Saved forecasts exist\nwithin the permitted scope?) then (Yes)
+    |Client|
+    :Display the available saved forecasts;
+
+    |Blood Bank Administrator|
+    :Select a saved forecast;
+
+    |Client|
+    :Clear previously displayed forecast details;
+
+    |Server — Analytics & AI|
+    :Retrieve the exact selected saved result\nand its identifying information\nwithin the current permitted scope;
+
+    if (The exact selected forecast is\navailable, in scope and readable?) then (Yes)
+      |Client|
+      :Display its saved component, ABO/Rh,\nscope, identifying information and results;
+    else (No)
+      |Client|
+      :Report that the selected forecast\ncannot be displayed;
+    endif
+
+  else (No)
+    |Client|
+    :Display no saved forecast results;
+  endif
+
+else (No)
+  |Client|
+  :Report that saved forecasts\ncould not be loaded;
+endif
+
+stop
+@enduml

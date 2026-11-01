@@ -1,0 +1,105 @@
+@startuml
+title FR-06 - Sign In - Sequence Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+
+actor "Registered User" as User
+
+box "Client"
+  boundary "SignInPage" as Page
+end box
+
+box "Server — Accounts"
+  control "AuthenticationController\nPresentation" as Controller
+  control "AuthenticationService\nBusiness Logic" as Service
+  entity "AccountModel\nData Access" as Model
+end box
+
+database "Database" as DB
+
+User -> Page : openSignInPage()
+activate Page
+Page -> Page : displaySignInPage()
+deactivate Page
+
+User -> Page : enterCredentials(credentials)
+activate Page
+deactivate Page
+
+alt Sign-in submitted
+  User -> Page : submitSignIn()
+  activate Page
+
+  Page -> Controller : signIn(credentials)
+  activate Controller
+
+  alt Authentication service unavailable
+    Controller --> Page : signInResult: unavailable
+
+  else Authentication service available
+    Controller -> Service : authenticate(credentials)
+    activate Service
+
+    Service -> Model : findAccountForSignIn(credentials.loginIdentifier)
+    activate Model
+
+    Model -> DB : readAccountWithAccessContext(\ncredentials.loginIdentifier)
+    activate DB
+    DB --> Model : accountData
+    deactivate DB
+
+    Model --> Service : accountData
+    deactivate Model
+
+    Service -> Service : verifyCredentialsAndAccountStatus(\ncredentials, accountData)
+    activate Service
+    Service --> Service : verificationResult
+    deactivate Service
+
+    alt Credentials correct and account can sign in
+      Service -> Service : createAuthenticatedSession(accountData)
+      activate Service
+      Service --> Service : authenticatedSession
+      deactivate Service
+
+      Service -> Service : determinePermittedFunctions(accountData)
+      activate Service
+      Service --> Service : permittedFunctions
+      deactivate Service
+
+    else Credentials incorrect or account cannot sign in
+      Service -> Service : rejectSignIn()
+      activate Service
+      Service --> Service : rejectionResult
+      deactivate Service
+    end
+
+    Service --> Controller : signInResult
+    deactivate Service
+
+    Controller --> Page : signInResult
+  end
+
+  deactivate Controller
+
+  alt Sign-in successful
+    Page -> Page : displayWorkspace(\nsignInResult.permittedFunctions)
+
+  else Sign-in rejected
+    Page -> Page : displaySignInRejection()
+
+  else Authentication service unavailable
+    Page -> Page : displaySignInNotCompleted()
+  end
+
+  deactivate Page
+
+else Page left without submitting
+  User -> Page : leaveSignInPage()
+  activate Page
+  deactivate Page
+end
+
+@enduml

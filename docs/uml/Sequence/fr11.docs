@@ -1,0 +1,161 @@
+@startuml
+title FR-11 - Register Donation Attempt - Sequence Diagram
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+
+actor Receptionist
+
+box "Client"
+  boundary "DonorProfilePage" as Page
+end box
+
+box "Server — Donations"
+  control "DonationAttemptController\nPresentation" as AttemptController
+  control "DonationAttemptService\nBusiness Logic" as AttemptService
+  entity "DonationAttemptModel\nData Access" as AttemptModel
+end box
+
+box "Server — Donors"
+  control "DonorProfileService\nBusiness Logic" as DonorService
+  entity "DonorProfileModel\nData Access" as DonorModel
+end box
+
+database Database as DB
+
+Receptionist -> Page : openDonorProfile(donorId)
+activate Page
+deactivate Page
+
+Receptionist -> Page : submitDonationAttempt()
+activate Page
+
+Page -> AttemptController : registerDonationAttempt(donorId)
+activate AttemptController
+
+AttemptController -> AttemptService : registerDonationAttempt(donorId, currentUser)
+activate AttemptService
+
+AttemptService -> DonorService : getProfileForDonationAttempt(donorId)
+activate DonorService
+
+DonorService -> DonorModel : findDonorProfile(donorId)
+activate DonorModel
+
+DonorModel -> DB : readDonorProfile(donorId)
+activate DB
+DB --> DonorModel : profileResult
+deactivate DB
+
+DonorModel --> DonorService : profileResult
+deactivate DonorModel
+
+DonorService --> AttemptService : profileResult
+deactivate DonorService
+
+AttemptService -> AttemptService : checkProfileAndOperationScope(\nprofileResult, currentUser)
+activate AttemptService
+AttemptService --> AttemptService : profileCheck
+deactivate AttemptService
+
+alt Profile exists and operation is permitted
+
+  AttemptService -> AttemptModel : findInitialScreeningQueuedAttempt(donorId)
+  activate AttemptModel
+
+  AttemptModel -> DB : readInitialScreeningQueuedAttempt(donorId)
+  activate DB
+  DB --> AttemptModel : queuedAttempt
+  deactivate DB
+
+  AttemptModel --> AttemptService : queuedAttempt
+  deactivate AttemptModel
+
+  alt Existing queued attempt found
+
+    AttemptService -> AttemptService : preparePermittedExistingAttemptResult(\nqueuedAttempt, currentUser)
+    activate AttemptService
+    AttemptService --> AttemptService : registrationResult
+    deactivate AttemptService
+
+  else No queued attempt found
+
+    AttemptService -> AttemptService : createAttemptLinkedToDonor(donorId)
+    activate AttemptService
+    AttemptService --> AttemptService : creationResult
+    deactivate AttemptService
+
+    alt Attempt created
+
+      AttemptService -> AttemptService : assignUniqueIdentifier(creationResult.attempt)
+      activate AttemptService
+      AttemptService --> AttemptService : identifiedAttempt
+      deactivate AttemptService
+
+      AttemptService -> AttemptModel : saveAttemptInInitialScreeningQueue(identifiedAttempt)
+      activate AttemptModel
+
+      AttemptModel -> DB : saveQueuedDonationAttempt(identifiedAttempt)
+      activate DB
+      DB --> AttemptModel : queuePlacementResult
+      deactivate DB
+
+      AttemptModel --> AttemptService : queuePlacementResult
+      deactivate AttemptModel
+
+      AttemptService -> AttemptService : buildRegistrationResult(queuePlacementResult)
+      activate AttemptService
+      AttemptService --> AttemptService : registrationResult
+      deactivate AttemptService
+
+    else Attempt creation could not be completed
+
+      AttemptService -> AttemptService : buildIncompleteRegistrationResult(\ncreationResult.problemDetails)
+      activate AttemptService
+      AttemptService --> AttemptService : registrationResult
+      deactivate AttemptService
+
+    end
+  end
+
+else Profile does not exist or operation is not permitted
+
+  AttemptService -> AttemptService : buildIncompleteRegistrationResult(\nprofileCheck.problemDetails)
+  activate AttemptService
+  AttemptService --> AttemptService : registrationResult
+  deactivate AttemptService
+
+end
+
+AttemptService --> AttemptController : registrationResult
+deactivate AttemptService
+
+AttemptController --> Page : registrationResult
+deactivate AttemptController
+
+alt Attempt creation and queue placement completed
+
+  Page -> Page : displayRegistrationConfirmation(\nregistrationResult.attemptId)
+  activate Page
+  deactivate Page
+
+else Existing queued attempt returned within permitted scope
+
+  Page -> Page : displayExistingAttemptIdentifierAndStatus(\nregistrationResult.attemptId, registrationResult.status)
+  activate Page
+  deactivate Page
+
+  Page -> Page : enableOpeningExistingAttempt(registrationResult.attemptId)
+  activate Page
+  deactivate Page
+
+else Registration could not be completed
+
+  Page -> Page : displayRegistrationProblem(registrationResult.problemDetails)
+  activate Page
+  deactivate Page
+
+end
+
+deactivate Page
+@enduml

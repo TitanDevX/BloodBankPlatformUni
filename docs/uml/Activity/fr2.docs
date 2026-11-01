@@ -1,0 +1,42 @@
+@startuml
+title FR-02 - Register Hospital - Activity Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam conditionStyle InsideDiamond
+
+|Network Administrator|
+start
+:Request registration of a hospital;
+
+|Client|
+:Display the required registration fields;
+
+|Network Administrator|
+:Enter hospital details, location,\nand approved contact information;
+
+if (Cancel registration\nbefore saving?) then ([Yes])
+  :Cancel registration;
+  stop
+
+else ([No])
+  :Click the submit button;
+
+  |Server — Organizations|
+  :Validate the hospital data;
+
+  if (Data valid\nand complete?) then ([Yes])
+    :Save the hospital record;
+
+    |Client|
+    :Display registration confirmation;
+    stop
+
+  else ([No])
+    |Client|
+    :Request correction of missing\nor invalid fields;
+    stop
+  endif
+endif
+
+@enduml

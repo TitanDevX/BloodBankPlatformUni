@@ -1,0 +1,61 @@
+@startuml
+title FR-13 - Record Eligibility Decision - Activity Diagram
+skinparam monochrome true
+skinparam shadowing false
+skinparam conditionStyle InsideDiamond
+
+|Donor Screener|
+start
+:Open the attempt from the screening queue\nor by scanning the ticket;
+
+|Server — Donations|
+:Retrieve the attempt and\nits linked donor reference;
+
+|Client|
+:Display the attempt;
+
+|Donor Screener|
+:Confirm that the attempt belongs\nto the correct donor;
+:Review the predonation assessment;
+
+if (Selected decision?) then (Eligible)
+  :Record "Eligible" and the screening details;
+else (Deferred)
+  :Record "Deferred", the screening details,\nand a deferral reason;
+endif
+
+:Click the save button;
+
+|Server — Donations|
+:Check the current attempt state,\nrequired information, and the deferral reason\nwhen the decision is "Deferred";
+
+if (Decision complete and\nattempt state permits it?) then (Yes)
+
+  if (Decision is Eligible?) then (Yes)
+    :Save the "Eligible" decision\nand screening details;
+    :Move the attempt to the collection queue;
+
+    |Client|
+    :Display the recorded decision\nand the new collection queue status;
+    stop
+
+  else (Deferred)
+    |Server — Donations|
+    :Save the "Deferred" decision,\nscreening details, and reason;
+    :Close the attempt;
+
+    |Client|
+    :Display the recorded decision\nand closed attempt status;
+    stop
+  endif
+
+else (No)
+  |Server — Donations|
+  :Reject the decision;
+
+  |Client|
+  :Explain the rejection reason;
+  stop
+endif
+
+@enduml

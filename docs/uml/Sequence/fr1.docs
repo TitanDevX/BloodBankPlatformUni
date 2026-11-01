@@ -1,0 +1,86 @@
+@startuml
+title FR-01 - Register Blood Bank - Sequence Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+
+actor "Network Administrator" as Admin
+
+box "Client"
+  boundary "BloodBankRegistrationPage" as Page
+end box
+
+box "Server — Organizations"
+  control "BloodBankController\nPresentation" as Controller
+  control "BloodBankService\nBusiness Logic" as Service
+  entity "BloodBankModel\nData Access" as Model
+end box
+
+database "Database" as DB
+
+Admin -> Page : openRegistrationPage()
+activate Page
+Page -> Page : displayRegistrationFields()
+deactivate Page
+
+Admin -> Page : enterBankDetails(bankDetails,\nlocation, contactInfo)
+activate Page
+deactivate Page
+
+alt [Submit selected]
+  Admin -> Page : submitRegistration()
+  activate Page
+
+  Page -> Controller : registerBloodBank(registrationData)
+  activate Controller
+
+  Controller -> Service : registerBloodBank(registrationData)
+  activate Service
+
+  Service -> Service : validateRegistrationData(registrationData)
+  activate Service
+  Service --> Service : validationResult
+  deactivate Service
+
+  alt [Data valid and complete]
+    Service -> Model : createBloodBank(registrationData)
+    activate Model
+
+    Model -> DB : insertBloodBank(registrationData)
+    activate DB
+    DB --> Model : bankRecord
+    deactivate DB
+
+    Model --> Service : bankRecord
+    deactivate Model
+
+  else [Data missing or invalid]
+    Service -> Service : identifyFieldsToCorrect(validationResult)
+    activate Service
+    Service --> Service : fieldsToCorrect
+    deactivate Service
+  end
+
+  Service --> Controller : registrationResult
+  deactivate Service
+
+  Controller --> Page : registrationResult
+  deactivate Controller
+
+  alt [Registration successful]
+    Page -> Page : displayRegistrationConfirmation()
+
+  else [Data missing or invalid]
+    Page -> Page : displayValidationErrors(\nregistrationResult.fieldsToCorrect)
+  end
+
+  deactivate Page
+
+else [Registration cancelled before saving]
+  Admin -> Page : cancelRegistration()
+  activate Page
+  deactivate Page
+end
+
+@enduml

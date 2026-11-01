@@ -1,0 +1,62 @@
+@startuml
+title FR-09 - Register Donor Profile - Activity Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam conditionStyle InsideDiamond
+
+|Receptionist|
+start
+:Request registration of a new donor;
+
+|Client|
+:Display the required donor profile fields;
+
+|Receptionist|
+:Enter the required identifying\nand contact details;
+
+|Server — Donors|
+:Check completeness and validity\nunder the applicable rules;
+
+if (Data missing or invalid?) then ([Yes])
+  |Client|
+  :Identify what must be corrected\nbefore registration;
+  stop
+else ([No])
+endif
+
+|Server — Donors|
+:Look for an existing donor profile\nunder the applicable rules;
+
+if (Existing profile found?) then ([Yes])
+  |Client|
+  :Display the existing profile;
+else ([No])
+endif
+
+|Receptionist|
+if (Cancel before saving?) then ([Yes])
+  :Cancel registration;
+  stop
+else ([No])
+endif
+
+|Client|
+if (Existing profile found?) then ([Yes])
+  |Receptionist|
+  :Use the existing profile;
+  stop
+
+else ([No])
+  |Receptionist|
+  :Click the save button;
+
+  |Server — Donors|
+  :Create the donor profile\nwith identifying and contact details;
+
+  |Client|
+  :Display the created donor profile;
+  stop
+endif
+
+@enduml

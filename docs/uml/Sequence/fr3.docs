@@ -1,0 +1,66 @@
+@startuml
+title FR-03 - View Staff Accounts - Sequence Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+
+actor "Network Administrator" as Admin
+
+box "Client"
+  boundary "StaffAccountsPage" as Page
+end box
+
+box "Server — Accounts"
+  control "StaffAccountController\nPresentation" as Controller
+  control "StaffAccountService\nBusiness Logic" as Service
+  entity "StaffAccountModel\nData Access" as Model
+end box
+
+database "Database" as DB
+
+Admin -> Page : viewStaffAccounts()
+activate Page
+
+Page -> Controller : getStaffAccounts()
+activate Controller
+
+Controller -> Service : getStaffAccounts(currentUser)
+activate Service
+
+Service -> Service : determinePermittedViewingScope(currentUser)
+activate Service
+Service --> Service : viewingScope
+deactivate Service
+
+Service -> Model : findStaffAccounts(viewingScope)
+activate Model
+
+Model -> DB : readStaffAccountsWithRolesAndAssignments(\nviewingScope)
+activate DB
+DB --> Model : retrievalResult
+deactivate DB
+
+Model --> Service : retrievalResult
+deactivate Model
+
+Service --> Controller : retrievalResult
+deactivate Service
+
+Controller --> Page : retrievalResult
+deactivate Controller
+
+alt Retrieval failed
+  Page -> Page : displayLoadingFailure()
+
+else Retrieval succeeded and no accounts exist
+  Page -> Page : displayEmptyStaffAccountList()
+  Page -> Page : displayNoAccountsMessage()
+
+else Retrieval succeeded and accounts exist
+  Page -> Page : displayStaffAccountsWithRolesAndAssignments(\nretrievalResult.accounts)
+end
+
+deactivate Page
+
+@enduml

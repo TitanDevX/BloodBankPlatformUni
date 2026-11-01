@@ -1,0 +1,70 @@
+@startuml
+title FR-08 - Search Donor Profiles - Activity Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam conditionStyle InsideDiamond
+
+|Receptionist|
+start
+:Open the donor search;
+
+|Client|
+:Display the search criteria fields;
+
+|Receptionist|
+:Enter available search criteria;
+:Click the search button;
+
+|Server — Donors|
+:Validate the search criteria;
+
+if (Search criteria invalid?) then ([Yes])
+  |Client|
+  :Explain the problem with the criteria;
+  stop
+else ([No])
+endif
+
+|Server — Donors|
+:Retrieve matching donor profiles\nwithin the permitted scope;
+
+if (Retrieval failed?) then ([Yes])
+  |Client|
+  :Explain the retrieval problem;
+  stop
+else ([No])
+endif
+
+|Server — Donors|
+if (No matching profiles?) then ([Yes])
+  |Client|
+  :Display that no matching profiles were found;
+
+  |Receptionist|
+  if (Proceed to FR-09?) then ([Yes])
+    |Client|
+    :Open donor profile registration (FR-09);
+    stop
+  else ([No])
+    |Receptionist|
+    stop
+  endif
+
+else ([No])
+  |Client|
+  :Display the matching profiles;
+
+  |Receptionist|
+  :Check the donor's identity;
+
+  if (Multiple matching profiles?) then ([Yes])
+    :Compare matching profiles\nusing available information;
+  else ([No])
+  endif
+
+  :Identify the correct profile;
+  stop
+endif
+
+@enduml

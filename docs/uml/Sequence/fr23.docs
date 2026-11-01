@@ -1,0 +1,180 @@
+@startuml
+title FR-23 - Receive Component Expiry Notice - Sequence Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+
+actor "Inventory Staff" as Staff
+
+box "Client"
+  boundary "ComponentExpiryNoticePage" as Page
+end box
+
+box "Server — Inventory"
+  control "Approved Expiry Monitoring Mechanism" as Monitor
+  control "ComponentExpiryController\nPresentation" as Controller
+  control "ComponentExpiryService\nBusiness Logic" as Service
+  entity "InventoryModel\nData Access" as Model
+end box
+
+database Database as DB
+
+group Automatic expiry check
+
+  activate Monitor
+
+  Monitor -> Controller : runApprovedExpiryCheck()
+  activate Controller
+
+  Controller -> Service : checkComponentExpiry()
+  activate Service
+
+  Service -> Model : readUndisposedComponentsForExpiryCheck()
+  activate Model
+
+  Model -> DB : readUndisposedComponentsWithExpiryAndBank()
+  activate DB
+  DB --> Model : components
+  deactivate DB
+
+  Model --> Service : components
+  deactivate Model
+
+  Service -> Service : validateExpiryDataAndFindExpiredComponents(components)
+  activate Service
+  Service --> Service : expiryEvaluation
+  deactivate Service
+
+  Service -> Service : initializeNoticeOutcomes()
+  activate Service
+  Service --> Service : noticeOutcomes
+  deactivate Service
+
+  opt Missing or invalid expiry data found
+
+    Service -> Service : handleExpiryDataProblemsWithoutConfirmation(\nexpiryEvaluation.invalidRecords)
+
+  end
+
+  alt No confirmed expired components found
+
+    Service -> Service : finishWithoutIssuingNewExpiryNotices()
+
+  else Confirmed expired components found
+
+    loop Each confirmed expired and undisposed component
+
+      Service -> Model : ensureUnavailableForAllocation(component.id)
+      activate Model
+
+      Model -> DB : markComponentUnavailableForAllocation(component.id)
+      activate DB
+      DB --> Model : unavailabilityConfirmed
+      deactivate DB
+
+      Model --> Service : unavailabilityConfirmed
+      deactivate Model
+
+      Service -> Service : createExpiryNotice(component.id, component.bankId)
+      activate Service
+      Service --> Service : noticeOutcome
+      deactivate Service
+
+      opt Notice created successfully
+
+        Service -> Service : makeNoticeAccessibleToAuthorizedBankInventoryStaff(\nnoticeOutcome.notice, component.bankId)
+        activate Service
+        Service --> Service : noticeOutcome
+        deactivate Service
+
+      end
+
+      opt Notice creation or accessibility failed
+
+        Service -> Service : handleNoticeFailureKeepingComponentUnavailable(\ncomponent.id, noticeOutcome.problem)
+
+      end
+
+      Service -> Service : collectNoticeOutcome(noticeOutcomes, component.id, noticeOutcome)
+
+    end
+  end
+
+  Service -> Service : buildExpiryCheckResult(expiryEvaluation, noticeOutcomes)
+  activate Service
+  Service --> Service : expiryCheckResult
+  deactivate Service
+
+  Service --> Controller : expiryCheckResult
+  deactivate Service
+
+  Controller --> Monitor : expiryCheckResult
+  deactivate Controller
+
+  deactivate Monitor
+end
+
+opt Authorized inventory staff accesses the available expiry notices
+
+  Staff -> Page : viewAvailableExpiryNotices()
+  activate Page
+
+  Page -> Controller : getExpiryNotices()
+  activate Controller
+
+  Controller -> Service : getExpiryNotices(currentUser)
+  activate Service
+
+  Service -> Service : determineAuthorizedBankScope(currentUser)
+  activate Service
+  Service --> Service : bankScope
+  deactivate Service
+
+  Service -> Model : readExpiryNoticeWorklistWithinScope(bankScope)
+  activate Model
+
+  Model -> DB : readExpiredUndisposedComponentsWithValidExpiryWithinScope(bankScope)
+  activate DB
+  DB --> Model : worklistReadResult
+  deactivate DB
+
+  Model --> Service : worklistReadResult
+  deactivate Model
+
+  alt Worklist data retrieved successfully
+
+    Service -> Service : buildScopedExpiryNoticeList(worklistReadResult.components, bankScope)
+    activate Service
+    Service --> Service : noticeListResult
+    deactivate Service
+
+  else Notice worklist retrieval failed
+
+    Service -> Service : buildNoticeAccessFailure(worklistReadResult.problem)
+    activate Service
+    Service --> Service : noticeListResult
+    deactivate Service
+
+  end
+
+  Service --> Controller : noticeListResult
+  deactivate Service
+
+  Controller --> Page : noticeListResult
+  deactivate Controller
+
+  alt Notice list is available
+
+    Page -> Page : displayExpiryNotices(noticeListResult.notices)
+
+  else Notice access or preparation failed
+
+    Page -> Page : displayExpiryNoticeAccessFailure(noticeListResult.problem)
+
+  end
+
+  deactivate Page
+end
+
+@enduml

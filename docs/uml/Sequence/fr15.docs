@@ -1,0 +1,163 @@
+@startuml
+title FR-15 - Finish Blood Collection - Sequence Diagram
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+
+actor "Collection Staff" as Staff
+
+box "Client"
+  boundary "BloodCollectionPage" as Page
+end box
+
+box "Server — Donations"
+  control "BloodCollectionController\nPresentation" as CollectionController
+  control "BloodCollectionService\nBusiness Logic" as CollectionService
+  entity "DonationAttemptModel\nData Access" as AttemptModel
+  entity "DonationModel\nData Access" as DonationModel
+end box
+
+database Database as DB
+
+Staff -> Page : openAttemptInProgress(attemptId)
+activate Page
+
+Page -> CollectionController : getCollectionAttemptContext(attemptId)
+activate CollectionController
+
+CollectionController -> CollectionService : getCollectionAttemptContext(attemptId)
+activate CollectionService
+
+CollectionService -> AttemptModel : getCollectionAttemptContext(attemptId)
+activate AttemptModel
+
+AttemptModel -> DB : readCollectionAttemptContext(attemptId)
+activate DB
+DB --> AttemptModel : attemptContext
+deactivate DB
+
+AttemptModel --> CollectionService : attemptContext
+deactivate AttemptModel
+
+CollectionService --> CollectionController : attemptContext
+deactivate CollectionService
+
+CollectionController --> Page : attemptContext
+deactivate CollectionController
+
+Page -> Page : displayAttempt(attemptContext)
+activate Page
+deactivate Page
+
+deactivate Page
+
+alt Successful collection
+
+  Staff -> Page : recordSuccessfulCollection(collectedVolume)
+  activate Page
+  deactivate Page
+
+else Unsuccessful collection
+
+  Staff -> Page : recordUnsuccessfulCollection(collectedVolume, reason)
+  activate Page
+  deactivate Page
+
+end
+
+Staff -> Page : saveCollectionOutcome()
+activate Page
+
+Page -> CollectionController : finishBloodCollection(attemptId, outcomeData)
+activate CollectionController
+
+CollectionController -> CollectionService : finishBloodCollection(attemptId, outcomeData)
+activate CollectionService
+
+CollectionService -> AttemptModel : getCollectionCompletionContext(attemptId)
+activate AttemptModel
+
+AttemptModel -> DB : readCollectionStateAndFinalOutcome(attemptId)
+activate DB
+DB --> AttemptModel : completionContext
+deactivate DB
+
+AttemptModel --> CollectionService : completionContext
+deactivate AttemptModel
+
+CollectionService -> CollectionService : validateOutcomeDataAndAttemptState(\ncompletionContext, outcomeData)
+activate CollectionService
+CollectionService --> CollectionService : validationResult
+deactivate CollectionService
+
+alt Valid volume, required failure reason provided, collection started, and no final outcome exists
+
+  alt Successful collection
+
+    CollectionService -> DonationModel : saveSuccessfulOutcomeAndLinkBagAndSamples(\nattemptId, outcomeData.volume)
+    activate DonationModel
+
+    DonationModel -> DB : writeSuccessfulOutcomeAndDonationLinks(\nattemptId, outcomeData.volume)
+    activate DB
+    DB --> DonationModel : recordedOutcome
+    deactivate DB
+
+    DonationModel --> CollectionService : recordedOutcome
+    deactivate DonationModel
+
+    CollectionService -> DonationModel : placeDonationInQuarantine(\nrecordedOutcome.donationReference)
+    activate DonationModel
+
+    DonationModel -> DB : writeDonationQuarantineState(\nrecordedOutcome.donationReference)
+    activate DB
+    DB --> DonationModel : resultingState
+    deactivate DB
+
+    DonationModel --> CollectionService : resultingState
+    deactivate DonationModel
+
+  else Unsuccessful collection
+
+    CollectionService -> AttemptModel : saveUnsuccessfulOutcomeAndCloseAttempt(\nattemptId, outcomeData.volume, outcomeData.reason)
+    activate AttemptModel
+
+    AttemptModel -> DB : writeUnsuccessfulOutcomeAndCloseAttempt(\nattemptId, outcomeData.volume, outcomeData.reason)
+    activate DB
+    DB --> AttemptModel : recordedOutcome, resultingState
+    deactivate DB
+
+    AttemptModel --> CollectionService : recordedOutcome, resultingState
+    deactivate AttemptModel
+
+  end
+
+  CollectionService -> CollectionService : buildRecordedOutcomeResult(\nrecordedOutcome, resultingState)
+  activate CollectionService
+  CollectionService --> CollectionService : outcomeResult
+  deactivate CollectionService
+
+else Required failure reason missing, invalid volume, collection not started, or final outcome exists
+
+  CollectionService -> CollectionService : buildOutcomeRejectedResult(validationResult)
+  activate CollectionService
+  CollectionService --> CollectionService : outcomeResult
+  deactivate CollectionService
+
+end
+
+CollectionService --> CollectionController : outcomeResult
+deactivate CollectionService
+
+CollectionController --> Page : outcomeResult
+deactivate CollectionController
+
+opt Outcome recorded
+
+  Page -> Page : displayRecordedOutcomeAndState(\noutcomeResult.outcome, outcomeResult.state)
+  activate Page
+  deactivate Page
+
+end
+
+deactivate Page
+@enduml

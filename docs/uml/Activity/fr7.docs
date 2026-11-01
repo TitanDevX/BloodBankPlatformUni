@@ -1,0 +1,50 @@
+@startuml
+title FR-07 - Remove Blood Bank Staff Assignment - Activity Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam conditionStyle InsideDiamond
+
+|Blood Bank HRM or\nBlood Bank Administrator|
+start
+:Identify the staff member\nassigned to the bank;
+
+|Client|
+:Display the target assignment;
+
+|Blood Bank HRM or\nBlood Bank Administrator|
+:Click the remove button;
+
+|Client|
+:Display the removal confirmation prompt;
+
+|Blood Bank HRM or\nBlood Bank Administrator|
+if (Confirm removal?) then ([Yes])
+  :Click the confirmation button;
+
+  |Server — Accounts|
+  :Check that the assignment still exists,\nis active for the specified bank, and is\nwithin the actor's authority;
+
+  if (Still assigned to the bank\nand removal is authorized?) then ([Yes])
+    :Deactivate the specified\nblood bank assignment;
+
+    |Client|
+    :Display the removal result;
+    stop
+
+  else ([No])
+    |Server — Accounts|
+    :Reject the removal;
+
+    |Client|
+    :Display the reason removal was rejected;
+    stop
+  endif
+
+else ([No])
+  |Blood Bank HRM or\nBlood Bank Administrator|
+  :Cancel removal;
+  stop
+endif
+
+@enduml

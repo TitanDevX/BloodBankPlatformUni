@@ -1,0 +1,121 @@
+@startuml
+title FR-07 - Remove Blood Bank Staff Assignment - Sequence Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+
+actor "Blood Bank HRM or\nBlood Bank Administrator" as StaffManager
+
+box "Client"
+  boundary "StaffAssignmentPage" as Page
+end box
+
+box "Server — Accounts"
+  control "StaffAssignmentController\nPresentation" as Controller
+  control "StaffAssignmentService\nBusiness Logic" as Service
+  entity "StaffAssignmentModel\nData Access" as Model
+end box
+
+database "Database" as DB
+
+StaffManager -> Page : identifyStaffMember(staffId)
+activate Page
+
+Page -> Controller : getStaffAssignment(staffId, bankId)
+activate Controller
+
+Controller -> Service : getStaffAssignment(staffId, bankId)
+activate Service
+
+Service -> Model : findStaffAssignment(staffId, bankId)
+activate Model
+
+Model -> DB : readStaffAssignment(staffId, bankId)
+activate DB
+DB --> Model : targetAssignment
+deactivate DB
+
+Model --> Service : targetAssignment
+deactivate Model
+
+Service --> Controller : targetAssignment
+deactivate Service
+
+Controller --> Page : targetAssignment
+deactivate Controller
+
+Page -> Page : displayTargetAssignment(targetAssignment)
+deactivate Page
+
+StaffManager -> Page : clickRemoveButton()
+activate Page
+Page -> Page : displayRemovalConfirmationPrompt(\ntargetAssignment)
+deactivate Page
+
+alt Removal confirmed
+  StaffManager -> Page : confirmRemoval()
+  activate Page
+
+  Page -> Controller : removeStaffAssignment(\ntargetAssignment.assignmentId, bankId)
+  activate Controller
+
+  Controller -> Service : removeStaffAssignment(\nassignmentId, bankId, currentActor)
+  activate Service
+
+  Service -> Model : findAssignmentById(assignmentId)
+  activate Model
+
+  Model -> DB : readAssignmentById(assignmentId)
+  activate DB
+  DB --> Model : currentAssignment
+  deactivate DB
+
+  Model --> Service : currentAssignment
+  deactivate Model
+
+  Service -> Service : validateAssignmentRemoval(\ncurrentAssignment, bankId, currentActor)
+  activate Service
+  Service --> Service : validationResult
+  deactivate Service
+
+  alt Still assigned to the bank and removal authorized
+    Service -> Model : deactivateAssignment(assignmentId, bankId)
+    activate Model
+
+    Model -> DB : setAssignmentInactive(assignmentId, bankId)
+    activate DB
+    DB --> Model : inactiveAssignment
+    deactivate DB
+
+    Model --> Service : inactiveAssignment
+    deactivate Model
+
+  else Not assigned to bank or removal unauthorized
+    Service -> Service : determineRejectionReason(validationResult)
+    activate Service
+    Service --> Service : rejectionReason
+    deactivate Service
+  end
+
+  Service --> Controller : removalResult
+  deactivate Service
+
+  Controller --> Page : removalResult
+  deactivate Controller
+
+  alt Removal successful
+    Page -> Page : displayRemovalResult(removalResult)
+  else Removal rejected
+    Page -> Page : displayRemovalRejection(removalResult.reason)
+  end
+
+  deactivate Page
+
+else Removal cancelled before confirmation
+  StaffManager -> Page : cancelRemoval()
+  activate Page
+  deactivate Page
+end
+
+@enduml

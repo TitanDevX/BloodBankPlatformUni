@@ -1,0 +1,107 @@
+@startuml
+title FR-22 - View Saved Forecast - Sequence Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+
+actor "Blood Bank Administrator" as Administrator
+
+box "Client"
+  boundary "DemandForecastPage" as Page
+end box
+
+box "Server — Analytics & AI"
+  control "DemandForecastController\nPresentation" as ForecastController
+  control "DemandForecastService\nBusiness Logic" as ForecastService
+  entity "ForecastModel\nData Access" as ForecastModel
+end box
+
+database Database as DB
+
+Administrator -> Page : requestSavedForecasts()
+activate Page
+
+Page -> ForecastController : getSavedForecasts()
+activate ForecastController
+
+ForecastController -> ForecastService : getSavedForecasts(bankContext)
+activate ForecastService
+
+ForecastService -> ForecastModel : findSavedForecastsWithinScope(bankContext)
+activate ForecastModel
+
+ForecastModel -> DB : readPublishedSavedForecastSummariesWithinScope(bankContext)
+activate DB
+DB --> ForecastModel : listResult
+deactivate DB
+
+ForecastModel --> ForecastService : listResult
+deactivate ForecastModel
+
+ForecastService --> ForecastController : listResult
+deactivate ForecastService
+
+ForecastController --> Page : listResult
+deactivate ForecastController
+
+alt List retrieved successfully and saved forecasts exist
+
+  Page -> Page : displaySavedForecastList(listResult.forecasts)
+
+else List retrieved successfully and no saved forecasts exist
+
+  Page -> Page : displayNoSavedForecasts()
+
+else Forecast list retrieval failed
+
+  Page -> Page : displaySavedForecastLoadingFailure(listResult.problem)
+
+end
+
+deactivate Page
+
+opt Saved forecasts were listed and the administrator selects one
+
+  Administrator -> Page : selectSavedForecast(forecastId)
+  activate Page
+
+  Page -> Page : clearPreviouslyDisplayedForecastDetails()
+
+  Page -> ForecastController : getSavedForecast(forecastId)
+  activate ForecastController
+
+  ForecastController -> ForecastService : getSavedForecast(forecastId, bankContext)
+  activate ForecastService
+
+  ForecastService -> ForecastModel : findExactSavedForecastWithinScope(forecastId, bankContext)
+  activate ForecastModel
+
+  ForecastModel -> DB : readExactSavedForecastWithIdentifyingInformation(\nforecastId, bankContext)
+  activate DB
+  DB --> ForecastModel : retrievalResult
+  deactivate DB
+
+  ForecastModel --> ForecastService : retrievalResult
+  deactivate ForecastModel
+
+  ForecastService --> ForecastController : retrievalResult
+  deactivate ForecastService
+
+  ForecastController --> Page : retrievalResult
+  deactivate ForecastController
+
+  alt Exact selected forecast retrieved successfully within current scope
+
+    Page -> Page : displaySelectedSavedForecast(\nretrievalResult.forecast.component, retrievalResult.forecast.aboRh,\nretrievalResult.forecast.scope, retrievalResult.forecast.identifyingInformation,\nretrievalResult.forecast.results)
+
+  else Selected forecast is missing, out of scope or cannot be retrieved
+
+    Page -> Page : displaySelectedForecastUnavailable(forecastId, retrievalResult.problem)
+
+  end
+
+  deactivate Page
+end
+
+@enduml

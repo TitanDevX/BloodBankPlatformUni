@@ -1,0 +1,45 @@
+@startuml
+title FR-14 - Start Blood Collection - Activity Diagram
+skinparam monochrome true
+skinparam shadowing false
+skinparam conditionStyle InsideDiamond
+
+|Collection Staff|
+start
+:Open the attempt from the queue\nor by scanning the ticket;
+
+|Server — Donations|
+:Retrieve the attempt and\nits linked donor reference;
+
+|Client|
+:Display the attempt;
+
+|Collection Staff|
+:Confirm the donor's identity;
+:Check that the donor, bag,\nand sample labels match;
+
+if (Identity confirmed and\nall labels match?) then (Yes)
+  :Click the start button;
+
+  |Server — Donations|
+  :Recheck eligibility and\nthe current attempt state;
+
+  if (Eligible, not closed,\nand collection not already started?) then (Yes)
+    :Record collection start and\nset the attempt state to "Collecting";
+
+    |Client|
+    :Display the start confirmation\nand current attempt state;
+    stop
+
+  else (No)
+    |Server — Donations|
+    :Do not record a collection start;
+    stop
+  endif
+
+else (No)
+  |Collection Staff|
+  stop
+endif
+
+@enduml

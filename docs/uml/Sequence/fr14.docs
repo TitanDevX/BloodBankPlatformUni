@@ -1,0 +1,129 @@
+@startuml
+title FR-14 - Start Blood Collection - Sequence Diagram
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+
+actor "Collection Staff" as Staff
+
+box "Client"
+  boundary "BloodCollectionPage" as Page
+end box
+
+box "Server — Donations"
+  control "BloodCollectionController\nPresentation" as CollectionController
+  control "BloodCollectionService\nBusiness Logic" as CollectionService
+  entity "DonationAttemptModel\nData Access" as AttemptModel
+end box
+
+database Database as DB
+
+alt Open from the queue
+  Staff -> Page : openAttemptFromQueue(attemptId)
+else Open by scanning the ticket
+  Staff -> Page : scanTicket(attemptBarcode)
+end
+
+activate Page
+
+Page -> Page : resolveSelectedAttemptIdentifier()
+activate Page
+Page --> Page : attemptId
+deactivate Page
+
+Page -> CollectionController : getCollectionAttemptContext(attemptId)
+activate CollectionController
+
+CollectionController -> CollectionService : getCollectionAttemptContext(attemptId)
+activate CollectionService
+
+CollectionService -> AttemptModel : getAttemptWithDonorReference(attemptId)
+activate AttemptModel
+
+AttemptModel -> DB : readAttemptAndDonorReference(attemptId)
+activate DB
+DB --> AttemptModel : attemptContext
+deactivate DB
+
+AttemptModel --> CollectionService : attemptContext
+deactivate AttemptModel
+
+CollectionService --> CollectionController : attemptContext
+deactivate CollectionService
+
+CollectionController --> Page : attemptContext
+deactivate CollectionController
+
+Page -> Page : displayAttempt(attemptContext)
+activate Page
+deactivate Page
+
+deactivate Page
+
+alt Donor identity confirmed and donor, bag, and sample labels match
+
+  Staff -> Page : clickStartButton()
+  activate Page
+
+  Page -> CollectionController : startBloodCollection(attemptId)
+  activate CollectionController
+
+  CollectionController -> CollectionService : startBloodCollection(attemptId)
+  activate CollectionService
+
+  CollectionService -> AttemptModel : getCollectionStartContext(attemptId)
+  activate AttemptModel
+
+  AttemptModel -> DB : readEligibilityAndCollectionState(attemptId)
+  activate DB
+  DB --> AttemptModel : startContext
+  deactivate DB
+
+  AttemptModel --> CollectionService : startContext
+  deactivate AttemptModel
+
+  CollectionService -> CollectionService : validateEligibilityAndAttemptState(startContext)
+  activate CollectionService
+  CollectionService --> CollectionService : validationResult
+  deactivate CollectionService
+
+  alt Eligible, attempt not closed, and collection not already started
+
+    CollectionService -> AttemptModel : recordCollectionStartAndSetState(\nattemptId, "Collecting")
+    activate AttemptModel
+
+    AttemptModel -> DB : writeCollectionStartAndState(\nattemptId, "Collecting")
+    activate DB
+    DB --> AttemptModel : startResult
+    deactivate DB
+
+    AttemptModel --> CollectionService : startResult
+    deactivate AttemptModel
+
+  else Ineligible, attempt closed, or collection already started
+
+    CollectionService -> CollectionService : buildStartNotRecordedResult()
+    activate CollectionService
+    CollectionService --> CollectionService : startResult
+    deactivate CollectionService
+
+  end
+
+  CollectionService --> CollectionController : startResult
+  deactivate CollectionService
+
+  CollectionController --> Page : startResult
+  deactivate CollectionController
+
+  opt Collection start recorded
+    Page -> Page : displayStartConfirmationAndState(startResult.state)
+    activate Page
+    deactivate Page
+  end
+
+  deactivate Page
+
+else Identity or labels do not match
+end
+
+@enduml

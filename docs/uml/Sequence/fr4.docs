@@ -1,0 +1,118 @@
+@startuml
+title FR-04 - Update Staff Account - Sequence Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+
+actor "Network Administrator" as Admin
+
+box "Client"
+  boundary "StaffAccountUpdatePage" as Page
+end box
+
+box "Server — Accounts"
+  control "StaffAccountController\nPresentation" as Controller
+  control "StaffAccountService\nBusiness Logic" as Service
+  entity "StaffAccountModel\nData Access" as Model
+end box
+
+database "Database" as DB
+
+Admin -> Page : selectStaffAccount(accountId)
+activate Page
+
+Page -> Controller : getStaffAccount(accountId)
+activate Controller
+
+Controller -> Service : getStaffAccount(accountId)
+activate Service
+
+Service -> Model : findStaffAccount(accountId)
+activate Model
+
+Model -> DB : readStaffAccountWithRoleAndAssignment(accountId)
+activate DB
+DB --> Model : staffAccount
+deactivate DB
+
+Model --> Service : staffAccount
+deactivate Model
+
+Service --> Controller : staffAccount
+deactivate Service
+
+Controller --> Page : staffAccount
+deactivate Controller
+
+alt Account found
+  Page -> Page : displayCurrentDetails(staffAccount)
+
+else Account does not exist
+  Page -> Page : displayUpdateRejection("Account does not exist")
+end
+
+deactivate Page
+
+opt Account found
+  Admin -> Page : editPermittedFields(updatedData)
+  activate Page
+  deactivate Page
+
+  alt Save selected
+    Admin -> Page : saveChanges()
+    activate Page
+
+    Page -> Controller : updateStaffAccount(accountId, updatedData)
+    activate Controller
+
+    Controller -> Service : updateStaffAccount(accountId, updatedData)
+    activate Service
+
+    Service -> Service : validateDataAndRoleCompatibility(updatedData)
+    activate Service
+    Service --> Service : validationResult
+    deactivate Service
+
+    alt Data valid and role compatible with organization assignment
+      Service -> Model : updateStaffAccount(accountId, updatedData)
+      activate Model
+
+      Model -> DB : saveStaffAccountChanges(accountId, updatedData)
+      activate DB
+      DB --> Model : updatedAccountDetails
+      deactivate DB
+
+      Model --> Service : updatedAccountDetails
+      deactivate Model
+
+    else Data invalid or role incompatible with organization assignment
+      Service -> Service : getUpdateRejectionReason(validationResult)
+      activate Service
+      Service --> Service : rejectionReason
+      deactivate Service
+    end
+
+    Service --> Controller : updateResult
+    deactivate Service
+
+    Controller --> Page : updateResult
+    deactivate Controller
+
+    alt Update saved
+      Page -> Page : displayUpdatedDetails(updateResult.accountDetails)
+
+    else Update rejected
+      Page -> Page : displayUpdateRejection(updateResult.reason)
+    end
+
+    deactivate Page
+
+  else Update cancelled before saving
+    Admin -> Page : cancelUpdate()
+    activate Page
+    deactivate Page
+  end
+end
+
+@enduml

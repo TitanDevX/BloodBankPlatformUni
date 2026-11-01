@@ -1,0 +1,63 @@
+@startuml
+title FR-21 - Generate Demand Forecast - Activity Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam conditionStyle InsideDiamond
+
+|Blood Bank Administrator|
+start
+:Request a forecast within the\npermitted blood bank scope;
+
+|Client|
+:Display the approved forecast interface;
+
+repeat
+  |Blood Bank Administrator|
+  :Select the component and ABO/Rh group;
+  :Click the generate button;
+
+  |Server — Analytics & AI|
+  :Determine the permitted forecast scope;
+
+  |Server — Requests|
+  :Retrieve relevant historical aggregates\nof original submitted demand for\nthe addressed bank, component and ABO/Rh;
+
+  if (Historical demand retrieved\nsuccessfully?) then (Yes)
+    |Server — Analytics & AI|
+    :Prepare the historical demand data\nunder the approved model policy;
+
+    if (Data prepared successfully and\nsufficient under the model policy?) then (Yes)
+      :Run the approved forecasting method;
+
+      if (Processing succeeded and the\nresult satisfies the approved policy?) then (Yes)
+        :Save the new forecast atomically with\nits scope and retrieval information,\nwithout replacing earlier results;
+
+        if (The completed forecast was\nsaved successfully?) then (Yes)
+          |Client|
+          :Display the saved forecast\nand its retrieval identifier;
+        else (No)
+          |Client|
+          :Report that forecast generation failed;
+        endif
+
+      else (No)
+        |Client|
+        :Report that forecast generation failed;
+      endif
+
+    else (No)
+      |Client|
+      :Report insufficient data or\na data preparation failure;
+    endif
+
+  else (No)
+    |Client|
+    :Report that forecast generation failed\nbecause historical data could not be retrieved;
+  endif
+
+  |Blood Bank Administrator|
+repeat while (Generate for another\ncomponent or ABO/Rh group?) is (Yes) not (No)
+
+stop
+@enduml

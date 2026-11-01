@@ -1,0 +1,111 @@
+@startuml
+title FR-08 - Search Donor Profiles - Sequence Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+
+actor "Receptionist" as Receptionist
+
+box "Client"
+  boundary "DonorSearchPage" as Page
+end box
+
+box "Server — Donors"
+  control "DonorSearchController\nPresentation" as Controller
+  control "DonorSearchService\nBusiness Logic" as Service
+  entity "DonorProfileModel\nData Access" as Model
+end box
+
+database "Database" as DB
+
+Receptionist -> Page : openDonorSearch()
+activate Page
+Page -> Page : displaySearchCriteriaFields()
+deactivate Page
+
+Receptionist -> Page : enterSearchCriteria(criteria)
+activate Page
+deactivate Page
+
+Receptionist -> Page : clickSearchButton()
+activate Page
+
+Page -> Controller : searchDonorProfiles(criteria)
+activate Controller
+
+Controller -> Service : searchDonorProfiles(criteria, currentUser)
+activate Service
+
+Service -> Service : validateSearchCriteria(criteria)
+activate Service
+Service --> Service : validationResult
+deactivate Service
+
+alt Search criteria valid
+  Service -> Service : determinePermittedSearchScope(currentUser)
+  activate Service
+  Service --> Service : permittedScope
+  deactivate Service
+
+  Service -> Model : findMatchingProfiles(criteria, permittedScope)
+  activate Model
+
+  Model -> DB : readMatchingDonorProfiles(\ncriteria, permittedScope)
+  activate DB
+  DB --> Model : retrievalResult
+  deactivate DB
+
+  Model --> Service : retrievalResult
+  deactivate Model
+
+  Service --> Controller : searchResult
+
+else Search criteria invalid
+  Service --> Controller : searchResult: invalid criteria
+end
+
+deactivate Service
+
+Controller --> Page : searchResult
+deactivate Controller
+
+alt Search criteria invalid
+  Page -> Page : displaySearchProblem(searchResult.problemDetails)
+
+else Retrieval failed
+  Page -> Page : displaySearchProblem(searchResult.problemDetails)
+
+else Retrieval succeeded with no matching profiles
+  Page -> Page : displayNoMatchingProfiles()
+
+else Retrieval succeeded with matching profiles
+  Page -> Page : displaySearchResults(searchResult.profiles)
+end
+
+deactivate Page
+
+opt Search completed successfully
+  alt No matching profiles
+    opt Receptionist chooses to proceed to FR-09
+      Receptionist -> Page : proceedToDonorRegistration()
+      activate Page
+      Page -> Page : openDonorRegistrationPage()
+      deactivate Page
+    end
+
+  else Matching profiles found
+    alt Multiple profiles distinguished using available information
+      Receptionist -> Page : identifyCorrectProfileAfterCheckingIdentity(\nprofileId)
+      activate Page
+      deactivate Page
+
+    else One matching profile
+      Receptionist -> Page : identifyCorrectProfileAfterCheckingIdentity(\nprofileId)
+      activate Page
+      deactivate Page
+    end
+  end
+end
+
+@enduml

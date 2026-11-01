@@ -1,0 +1,44 @@
+@startuml
+title FR-05 - Register Blood Bank Staff - Activity Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam conditionStyle InsideDiamond
+
+|Blood Bank HRM or\nBlood Bank Administrator|
+start
+:Request staff registration;
+
+|Client|
+:Display the required account fields;
+
+|Blood Bank HRM or\nBlood Bank Administrator|
+:Enter staff details and select a role\nwithin the blood bank;
+
+if (Cancel registration before saving?) then ([Yes])
+  :Cancel registration;
+  stop
+else ([No])
+  :Click the submit button;
+endif
+
+|Server — Accounts|
+:Validate the entered data and login identifier\nagainst the account rules;
+
+if (Data invalid or login identifier\nconflicts with account rules?) then ([Yes])
+  :Reject registration;
+
+  |Client|
+  :Display the registration rejection reason;
+  stop
+else ([No])
+endif
+
+|Server — Accounts|
+:Create the staff account and assign it\nto the selected blood bank and role;
+
+|Client|
+:Display registration confirmation;
+stop
+
+@enduml

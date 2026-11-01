@@ -1,0 +1,157 @@
+@startuml
+title FR-19 - View Request Match - Sequence Diagram
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+
+actor "Hospital Staff" as Staff
+
+box "Client"
+  boundary "BloodComponentRequestPage" as Page
+end box
+
+box "Server — Requests"
+  control "BloodRequestController\nPresentation" as RequestController
+  control "BloodRequestService\nBusiness Logic" as RequestService
+end box
+
+box "Server — Inventory"
+  control "InventoryMatchingService\nBusiness Logic" as MatchingService
+  entity "InventoryModel\nData Access" as InventoryModel
+end box
+
+box "Server — Organizations"
+  control "OrganizationService\nBusiness Logic" as OrganizationService
+  entity "OrganizationModel\nData Access" as OrganizationModel
+end box
+
+database Database as DB
+
+Staff -> Page : enterRequestDetails(patient, component, aboRh, quantity)
+activate Page
+deactivate Page
+
+loop Initial Search, or explicit Retry after Match or No Match
+
+  alt Initial Search
+    Staff -> Page : clickSearchButton()
+  else Retry selected
+    Staff -> Page : clickRetryButton()
+  end
+
+  activate Page
+
+  Page -> Page : clearPreviousMatchAndDisableSubmit()
+
+  Page -> RequestController : matchRequest(currentRequestData)
+  activate RequestController
+
+  RequestController -> RequestService : matchRequest(currentRequestData, hospitalContext)
+  activate RequestService
+
+  RequestService -> MatchingService : findMatchUnderFR19(currentRequestData, hospitalContext)
+  activate MatchingService
+
+  MatchingService -> InventoryModel : readCurrentCandidateStock(\ncurrentRequestData.component, currentRequestData.aboRh)
+  activate InventoryModel
+
+  InventoryModel -> DB : readApprovedAvailableUnexpiredUndisposedUnits(\ncurrentRequestData.component, currentRequestData.aboRh)
+  activate DB
+
+  DB --> InventoryModel : stockReadResult
+  deactivate DB
+
+  InventoryModel --> MatchingService : stockReadResult
+  deactivate InventoryModel
+
+  alt Inventory data could not be read completely
+
+    MatchingService -> MatchingService : buildCannotDetermineResult(stockReadResult.problem)
+    activate MatchingService
+    MatchingService --> MatchingService : matchResult
+    deactivate MatchingService
+
+  else Inventory data read successfully
+
+    MatchingService -> MatchingService : findBanksProvidingFullQuantity(\nstockReadResult.units, currentRequestData.quantity)
+    activate MatchingService
+    MatchingService --> MatchingService : qualifyingBanks
+    deactivate MatchingService
+
+    alt No bank can provide the full exact-match quantity
+
+      MatchingService -> MatchingService : buildNoMatchResult()
+      activate MatchingService
+      MatchingService --> MatchingService : matchResult
+      deactivate MatchingService
+
+    else At least one bank can provide the full quantity alone
+
+      MatchingService -> OrganizationService : getRequiredMatchLocations(\nhospitalContext.hospitalId, qualifyingBanks.bankIds)
+      activate OrganizationService
+
+      OrganizationService -> OrganizationModel : readHospitalAndBankLocations(\nhospitalContext.hospitalId, qualifyingBanks.bankIds)
+      activate OrganizationModel
+
+      OrganizationModel -> DB : readHospitalAndBankLocations(\nhospitalContext.hospitalId, qualifyingBanks.bankIds)
+      activate DB
+
+      DB --> OrganizationModel : locationReadResult
+      deactivate DB
+
+      OrganizationModel --> OrganizationService : locationReadResult
+      deactivate OrganizationModel
+
+      OrganizationService --> MatchingService : locationReadResult
+      deactivate OrganizationService
+
+      alt Required location data cannot be read
+
+        MatchingService -> MatchingService : buildCannotDetermineResult(locationReadResult.problem)
+        activate MatchingService
+        MatchingService --> MatchingService : matchResult
+        deactivate MatchingService
+
+      else All required location data are available
+
+        MatchingService -> MatchingService : selectNearestQualifyingBank(\nqualifyingBanks, locationReadResult.locations)
+        activate MatchingService
+        MatchingService --> MatchingService : matchedBank
+        deactivate MatchingService
+
+        MatchingService -> MatchingService : buildMatchResult(matchedBank, currentRequestData)
+        activate MatchingService
+        MatchingService --> MatchingService : matchResult
+        deactivate MatchingService
+
+      end
+    end
+  end
+
+  MatchingService --> RequestService : matchResult
+  deactivate MatchingService
+
+  RequestService --> RequestController : matchResult
+  deactivate RequestService
+
+  RequestController --> Page : matchResult
+  deactivate RequestController
+
+  alt A qualifying bank was matched
+
+    Page -> Page : displayBankAndMatchDetailsWithSubmitAndRetry(\nmatchResult.bank, matchResult.details)
+
+  else No bank can provide the full exact-match quantity
+
+    Page -> Page : displayNoMatchWithRetry()
+
+  else A result could not be determined
+
+    Page -> Page : displayCannotDetermineMatch(matchResult.problem)
+
+  end
+
+  deactivate Page
+end
+
+@enduml

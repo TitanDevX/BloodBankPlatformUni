@@ -1,0 +1,85 @@
+@startuml
+title FR-05 - Register Blood Bank Staff - Sequence Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+
+actor "Blood Bank HRM or\nBlood Bank Administrator" as Registrar
+
+box "Client"
+  boundary "BloodBankStaffRegistrationPage" as Page
+end box
+
+box "Server — Accounts"
+  control "StaffAccountController\nPresentation" as Controller
+  control "StaffAccountService\nBusiness Logic" as Service
+  entity "StaffAccountModel\nData Access" as Model
+end box
+
+database "Database" as DB
+
+Registrar -> Page : requestStaffRegistration()
+activate Page
+Page -> Page : displayRequiredAccountFields()
+deactivate Page
+
+Registrar -> Page : enterStaffDetailsAndSelectRole(\nstaffDetails, role)
+activate Page
+deactivate Page
+
+alt Submit selected
+  Registrar -> Page : submitRegistration()
+  activate Page
+
+  Page -> Controller : registerBloodBankStaff(\nstaffDetails, bankId, role)
+  activate Controller
+
+  Controller -> Service : registerBloodBankStaff(\nstaffDetails, bankId, role)
+  activate Service
+
+  Service -> Service : validateDataAndLoginIdentifierRules(\nstaffDetails, bankId, role)
+  activate Service
+  Service --> Service : validationResult
+  deactivate Service
+
+  alt Data valid and login identifier complies with account rules
+    Service -> Model : createStaffAccountWithAssignment(\nstaffDetails, bankId, role)
+    activate Model
+
+    Model -> DB : saveStaffAccountWithAssignment(\nstaffDetails, bankId, role)
+    activate DB
+    DB --> Model : staffAccount
+    deactivate DB
+
+    Model --> Service : staffAccount
+    deactivate Model
+
+  else Data invalid or login identifier conflicts with account rules
+    Service -> Service : determineRejectionReason(validationResult)
+    activate Service
+    Service --> Service : rejectionReason
+    deactivate Service
+  end
+
+  Service --> Controller : registrationResult
+  deactivate Service
+
+  Controller --> Page : registrationResult
+  deactivate Controller
+
+  alt Registration successful
+    Page -> Page : displayRegistrationConfirmation()
+  else Registration rejected
+    Page -> Page : displayRegistrationRejection(\nregistrationResult.reason)
+  end
+
+  deactivate Page
+
+else Registration cancelled before saving
+  Registrar -> Page : cancelRegistration()
+  activate Page
+  deactivate Page
+end
+
+@enduml
