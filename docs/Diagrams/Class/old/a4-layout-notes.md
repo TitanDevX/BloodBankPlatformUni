@@ -1,5 +1,7 @@
 # A4 landscape — workflow-complete version
 
+Update, 1 November 2026: the existing Mermaid source and PNG now show three composition diamonds at Donation for assessment, collection and laboratory records. All class members and endpoint multiplicities remain unchanged. The PDF and geometry/print claims below describe the prior association-only export; the current change is documented in `high-level-class-design.md`.
+
 The three existing overview Mermaid filenames contain the same current source. `class-diagram-detailed.mmd` contains all 189 fields/types and full proposed operations. Both match the revised 16-entity ERD, including all 26 role-specific associations. The original 14 entity identifiers and 135 attribute names/types remain unchanged.
 
 The A4 overview displays exact selected field names and operations with types suppressed. It explicitly shows ABO/Rh, processing, matching, expiry, bank notices and saved forecasts. The two bank–request links are captioned addressed/accepted; they must not be merged or reinterpreted. Static matching is underlined and can run over criteria before a row exists. All other relationship meanings remain in source comments and the detailed view.

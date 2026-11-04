@@ -5,6 +5,7 @@ top to bottom direction
 skinparam componentStyle rectangle
 skinparam shadowing false
 skinparam packageStyle rectangle
+skinparam dpi 160
 
 rectangle "Client\nUser Interface" as Client
 
@@ -68,6 +69,7 @@ package "Server — Modular Monolithic Application" {
 }
 
 database "Database" as DB
+rectangle "AI Service\nDemand Forecasting\n(separately deployed)" as AI
 
 Client --> A1
 Client --> B1
@@ -85,9 +87,13 @@ E3 --> DB
 F3 --> DB
 G3 --> DB
 
+F2 --> AI : Forecast API\nAggregated demand history\nand forecast parameters
+
 legend bottom
     Arrows indicate the direction of requests and data access.
     Responses return along the same paths.
+    The AI service returns predictions and model metadata to Analytics & AI.
+    Only the backend accesses the database; the client calls the backend.
     Cross-module interactions are omitted for clarity.
 endlegend
 

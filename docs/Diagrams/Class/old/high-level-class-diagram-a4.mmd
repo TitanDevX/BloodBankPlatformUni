@@ -105,7 +105,7 @@ classDiagram
     blood_banks "1" -- "0..*" requests : addressed
     component_disposals "0..1" -- "1" blood_components
     requests "1" -- "0..*" request_allocations
-    assessment_results "0..1" -- "1" donations
+    assessment_results "0..1" --* "1" donations
     blood_banks "1" -- "0..*" forecast_runs
     staff_accounts "1" -- "0..*" blood_units
     request_allocations "0..1" -- "1" blood_components
@@ -113,7 +113,7 @@ classDiagram
     donor_profiles "1" -- "0..*" donations
     staff_accounts "1" -- "0..*" donations
     blood_banks "0..1" -- "0..*" requests : accepted
-    blood_units "0..1" -- "1" donations
+    blood_units "0..1" --* "1" donations
     hospitals "1" -- "0..*" requests
     blood_components "0..*" -- "1" blood_units
     blood_banks "1" -- "0..*" donations
@@ -121,7 +121,7 @@ classDiagram
     requests "0..*" -- "1" staff_accounts
     staff_accounts "1" -- "0..*" assessment_results
     forecast_runs "0..*" -- "1" staff_accounts
-    lab_test_results "0..1" -- "1" donations
+    lab_test_results "0..1" --* "1" donations
 
     %% Selected exact ERD fields; types are suppressed only in the A4 view.
     %% hospitals -- requests: creates
@@ -159,3 +159,14 @@ classDiagram
     %% forecast_runs owns frozen provenance and demand_forecasts stores immutable daily predictions.
     %% retrieve_saved never recalculates or substitutes another run. Forecasting does not mutate stock.
     %% Existing entity/attribute names were preserved; new forecast entities and routing/audit fields are additive.
+    %% Ownership clarification, 1 November 2026:
+    %% Donation exclusively owns its assessment, collection/blood-unit record and final laboratory result.
+    %% Filled diamonds are at donations; these owned records cannot be reassigned to another donation.
+    %% Blood components are independent inventory records; their donation/unit links remain associations for origin traceability.
+    %% Fresh donations still being processed are retained. Failed-assessment donations may be eligible for future cleanup.
+    %% Donations failing after assessment may be retained for years for analysis; no fixed retention period is specified.
+    %% After separation, stock is counted and managed as components while Donation remains the historical anchor.
+    %% Any component not physically disposed of protects its source donation and related history from deletion.
+    %% Protection includes available, reserved, quarantined, expired and rejected components awaiting disposal.
+    %% All components being disposed of does not automatically authorize deletion; retention rules must also permit it.
+    %% Composition expresses record ownership, not an implemented cleanup schedule, delete method or database cascade.

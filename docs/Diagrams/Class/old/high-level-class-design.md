@@ -2,6 +2,8 @@
 
 Updated 27 October 2026. The design uses `docs/ER/code/erd-low-level.mmd` as the shared entity/attribute baseline and the current functional requirements, detailed use cases and AI forecasting plan for behavior. This revision closes the six gaps found in review. It is a design update, not backend implementation or a database migration.
 
+Ownership clarification, 1 November 2026: the existing low-level overview, retained at `high-level-class-diagram-a4.mmd`, now uses composition for Donation's assessment, collection record and laboratory result. There are still 16 classes and 26 relationships: three compositions and 23 ordinary associations. All existing class members and endpoint multiplicities are retained. The PNG is regenerated for this change; the earlier PDF and five-pass geometry/print checks describe the previous association-only version.
+
 ## Scope and correspondence
 
 There are now **16 entities, 189 attributes and 26 role-specific associations** in both the detailed ERD and detailed class model. All 14 original entity identifiers and all 135 original field names/types are preserved. Additions are seven routing/rejection fields on `requests` and the two forecast entities `forecast_runs` and `demand_forecasts`.
@@ -66,7 +68,7 @@ Run states are queued → running → succeeded/partial/failed. `validate_result
 
 The original 14 classes remain: `requests`, `hospitals`, `blood_units`, `request_allocations`, `component_disposals`, `blood_components`, `donor_profiles`, `staff_accounts`, `roles`, `staff_assignments`, `donations`, `blood_banks`, `lab_test_results`, `assessment_results`. Added: `forecast_runs`, `demand_forecasts`.
 
-All original 22 associations retain their multiplicities and meanings. Four associations are added:
+All original 22 relationships retain their endpoint multiplicities. The three Donation-owned record relationships now explicitly express composition as described below. Four additional relationships remain:
 
 | Source class | Source multiplicity | Role | Target class | Target multiplicity |
 | --- | --- | --- | --- | --- |
@@ -75,7 +77,19 @@ All original 22 associations retain their multiplicities and meanings. Four asso
 | staff_accounts | 1 | requests | forecast_runs | 0..* |
 | forecast_runs | 1 | contains | demand_forecasts | 0..* |
 
-A queued/failed run may contain zero points. The existing `blood_banks [0..1] — requests [0..*] : accepts` association remains separate. Role assignments still use one bank XOR one hospital, or neither for system roles. Removal revokes access while preserving actor/history references. No inheritance or composition diamond is introduced without its actual UML semantics. Public methods describe domain responsibilities; an implementation may delegate orchestration to services/policies/repositories without changing existing entity names. No runtime API signatures are specified by the compact diagram's suppressed parameter lists.
+A queued/failed run may contain zero points. The existing `blood_banks [0..1] — requests [0..*] : accepts` association remains separate. Role assignments still use one bank XOR one hospital, or neither for system roles. Removal revokes access while preserving actor/history references. Composition is limited to the three Donation-owned records below; no inheritance or aggregation is inferred from a foreign key. Public methods describe domain responsibilities; an implementation may delegate orchestration to services/policies/repositories without changing existing entity names. No runtime API signatures are specified by the compact diagram's suppressed parameter lists.
+
+### Donation ownership and retention
+
+`donations` is the composition owner of zero or one `assessment_results`, zero or one `blood_units` collection/separation record, and zero or one `lab_test_results`. Each such record belongs exclusively to one donation and cannot be reassigned. The filled diamond is drawn at the Donation end. The optional part multiplicity permits a fresh attempt or an unsuccessful path to have no record for a stage it never reached.
+
+`blood_components` remains an independent inventory class. Its links to the originating donation and collection record are ordinary associations for traceability. Component-level management and disposal retain those source records. Inventory is counted at component level after separation, while the Donation remains the historical anchor.
+
+Fresh donations still being processed are retained. Failed-assessment donations may be eligible for immediate deletion or periodic cleanup under a future policy. Donations failing after assessment may remain valuable for analysis for years; no exact retention period is set. Analytical measures should distinguish attempts and collected volume from usable component supply.
+
+Any component not yet physically disposed of protects its source donation and related history from deletion. This includes available, reserved, quarantined, expired and rejected components awaiting disposal. Once every related component has been disposed of, retention rules must still permit any cleanup. Disposing of all components is not automatic authorization to delete their history.
+
+These are ownership and retention constraints, not an implemented cleanup workflow. No cleanup schedule, deletion operation, automatic database cascade or new retention period is introduced. Allocation and forecasting relationships are unchanged by this revision.
 
 ## Functional coverage
 
