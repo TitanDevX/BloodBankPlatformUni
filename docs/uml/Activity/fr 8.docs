@@ -10,7 +10,7 @@ start
 :Open the donor search;
 
 |Client|
-:Display the search criteria fields;
+:Display the donor search form;
 
 |Receptionist|
 :Enter available search criteria;
@@ -19,51 +19,39 @@ start
 |Server — Donors|
 :Validate the search criteria;
 
-if (Search criteria invalid?) then ([Yes])
-  |Client|
-  :Explain the problem with the criteria;
-  stop
-else ([No])
-endif
+if (Search criteria are valid?) then (Yes)
+  :Retrieve matching donor profiles;
 
-|Server — Donors|
-:Retrieve matching donor profiles\nwithin the permitted scope;
+  if (Retrieval succeeded?) then (Yes)
 
-if (Retrieval failed?) then ([Yes])
-  |Client|
-  :Explain the retrieval problem;
-  stop
-else ([No])
-endif
+    if (Matching profiles were found?) then (Yes)
+      |Client|
+      :Display the matching profiles;
 
-|Server — Donors|
-if (No matching profiles?) then ([Yes])
-  |Client|
-  :Display that no matching profiles were found;
+      |Receptionist|
+      if (Multiple profiles were found?) then (Yes)
+        :Compare matching profiles\nusing available information;
+      endif
 
-  |Receptionist|
-  if (Proceed to FR-09?) then ([Yes])
+      :Check the donor's identity;
+      :Identify the correct profile;
+      stop
+
+    else (No)
+      |Client|
+      :Display no matching profiles\nand the option to register the user;
+      stop
+    endif
+
+  else (No)
     |Client|
-    :Open donor profile registration (FR-09);
-    stop
-  else ([No])
-    |Receptionist|
+    :Explain that profile retrieval failed;
     stop
   endif
 
-else ([No])
+else (No)
   |Client|
-  :Display the matching profiles;
-
-  |Receptionist|
-  :Check the donor's identity;
-
-  if (Multiple matching profiles?) then ([Yes])
-    :Compare matching profiles\nusing available information;
-  else ([No])
-  endif
-
-  :Identify the correct profile;
+  :Explain the problem with\nthe search criteria;
   stop
 endif
 
