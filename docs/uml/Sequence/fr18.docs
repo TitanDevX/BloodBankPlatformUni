@@ -1,0 +1,171 @@
+@startuml
+title FR-18 - Submit Blood Component Request - Sequence Diagram
+hide footbox
+
+actor "Hospital Staff" as Staff
+
+box "Client"
+  boundary "BloodComponentRequestPage" as Page
+end box
+
+box "Server — Requests"
+  control "BloodRequestController\nPresentation" as Controller
+  control "BloodRequestService\nBusiness Logic" as Service
+  entity "BloodRequestModel\nData Access" as Model
+end box
+
+box "Server — Inventory"
+  control "InventoryMatchingService\nBusiness Logic" as Matching
+end box
+
+database "Database" as DB
+
+Staff -> Page : openRequestForm()
+activate Page
+Page -> Page : displayRequestForm()
+deactivate Page
+
+Staff -> Page : enterRequestData(requestData)
+activate Page
+deactivate Page
+
+loop Initial match or explicit Retry; stop after submission, cancellation or data rejection
+
+  alt Initial matching request
+    Staff -> Page : requestMatch()
+  else Retry selected
+    Staff -> Page : clickRetryButton()
+  end
+
+  activate Page
+  Page -> Controller : findRequestMatch(currentRequestData)
+  activate Controller
+
+  Controller -> Service : findRequestMatch(currentRequestData, currentUser)
+  activate Service
+
+  Service -> Service : validateDataAndHospitalScope(currentRequestData, currentUser)
+  activate Service
+  Service --> Service : validationResult
+  deactivate Service
+
+  alt Data valid and hospital within authority
+    Service -> Matching : findCurrentMatch(currentRequestData)
+    activate Matching
+
+    ref over Matching
+      FR-19: View Request Match
+    end ref
+
+    Matching --> Service : matchResult
+    deactivate Matching
+
+  else Invalid data or hospital outside authority
+    Service -> Service : buildMatchingRejection(validationResult)
+  end
+
+  Service --> Controller : matchingResponse
+  deactivate Service
+
+  Controller --> Page : matchingResponse
+  deactivate Controller
+
+  Page -> Page : clearPreviousMatch()
+
+  alt Match found
+    Page -> Page : displayMatchedBankAndSubmitRetry(matchingResponse.match)
+
+  else Matching completed with no qualifying bank
+    Page -> Page : displayNoMatchAndRetry()
+
+  else Data or hospital scope invalid
+    Page -> Page : displayCorrections(matchingResponse.corrections)
+
+  else Match cannot be determined
+    Page -> Page : displayMatchingProblemAndRetry(matchingResponse.reason)
+  end
+
+  deactivate Page
+
+  opt No validation rejection
+
+    opt Cancelled before clicking Submit
+      Staff -> Page : cancelRequest()
+      activate Page
+      deactivate Page
+    end
+
+    opt Not cancelled, a match is displayed, and Submit is clicked after review
+      Staff -> Page : clickSubmitButton()
+      activate Page
+
+      Page -> Controller : submitRequest(currentRequestData, displayedBankId)
+      activate Controller
+
+      Controller -> Service : submitRequest(currentRequestData, displayedBankId, currentUser)
+      activate Service
+
+      Service -> Service : validateDataAndHospitalScope(currentRequestData, currentUser)
+      activate Service
+      Service --> Service : validationResult
+      deactivate Service
+
+      alt Data invalid or hospital outside authority
+        Service -> Service : buildSubmissionRejection(validationResult)
+
+      else Data valid and hospital within authority
+        Service -> Matching : reverifyDisplayedMatch(currentRequestData, displayedBankId)
+        activate Matching
+
+        ref over Matching
+          Recheck the displayed bank under current FR-19 matching rules
+        end ref
+
+        Matching --> Service : verificationResult
+        deactivate Matching
+
+        alt Displayed bank remains a valid current match
+          Service -> Model : createPendingRequest(currentRequestData, displayedBankId)
+          activate Model
+
+          Model -> DB : insertPendingRequest(patient, hospital, displayedBankId,\ncomponent, bloodGroup, quantity, otherRequiredDetails)
+          activate DB
+          DB --> Model : pendingRequest
+          deactivate DB
+
+          Model --> Service : pendingRequest
+          deactivate Model
+
+          Service -> Service : makeRequestNoticeAvailableToAuthorizedBankInventoryStaff(\npendingRequest)
+          activate Service
+          Service --> Service : noticeAvailable
+          deactivate Service
+
+        else Displayed bank ineligible or match cannot be verified
+          Service -> Service : buildRetryRequiredResult(verificationResult)
+        end
+      end
+
+      Service --> Controller : submissionResult
+      deactivate Service
+
+      Controller --> Page : submissionResult
+      deactivate Controller
+
+      alt Pending request saved and notice available
+        Page -> Page : displaySubmissionConfirmationAndStatus(submissionResult.status)
+
+      else Invalid data or hospital outside authority
+        Page -> Page : displayCorrections(submissionResult.corrections)
+
+      else Displayed match ineligible or unverifiable
+        Page -> Page : clearCurrentMatchAndDisableSubmit()
+        Page -> Page : displaySubmissionProblemAndRetry(submissionResult.reason)
+      end
+
+      deactivate Page
+    end
+  end
+end
+
+@enduml

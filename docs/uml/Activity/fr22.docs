@@ -1,49 +1,48 @@
 @startuml
 title FR-22 - View Saved Forecast - Activity Diagram
 
-skinparam monochrome true
-skinparam shadowing false
-skinparam conditionStyle InsideDiamond
-
 |Blood Bank Administrator|
 start
 :Request saved forecasts;
 
 |Server — Analytics & AI|
-:Retrieve saved forecasts available within\nthe administrator's current scope;
+:Determine the administrator's permitted forecast scope;
+:Retrieve the saved forecast list within that scope;
 
-if (The forecast list was\nretrieved successfully?) then (Yes)
-
-  if (Saved forecasts exist\nwithin the permitted scope?) then (Yes)
+if (Forecast list retrieved successfully?) then (Yes)
+  if (Saved forecasts exist within scope?) then (Yes)
     |Client|
     :Display the available saved forecasts;
 
     |Blood Bank Administrator|
     :Select a saved forecast;
 
-    |Client|
-    :Clear previously displayed forecast details;
-
     |Server — Analytics & AI|
-    :Retrieve the exact selected saved result\nand its identifying information\nwithin the current permitted scope;
+    :Determine the administrator's current permitted scope;
+    :Retrieve the selected forecast's saved result\nand identifying information using\nits identifier and the current scope;
 
-    if (The exact selected forecast is\navailable, in scope and readable?) then (Yes)
+    if (Requested forecast retrieved within current scope?) then (Yes)
       |Client|
-      :Display its saved component, ABO/Rh,\nscope, identifying information and results;
-    else (No)
+      :Display the selected saved forecast's\ncomponent, ABO/Rh group, scope,\nresults and identifying information;
+      stop
+
+    else (Missing, out of scope or retrieval failed)
       |Client|
-      :Report that the selected forecast\ncannot be displayed;
+      :Clear any previously displayed forecast;
+      :Explain that the selected forecast cannot be displayed;
+      stop
     endif
 
   else (No)
     |Client|
     :Display no saved forecast results;
+    stop
   endif
 
 else (No)
   |Client|
-  :Report that saved forecasts\ncould not be loaded;
+  :Report that the saved forecast list could not be loaded;
+  stop
 endif
 
-stop
 @enduml

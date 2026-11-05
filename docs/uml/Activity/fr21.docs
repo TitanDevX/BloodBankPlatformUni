@@ -1,63 +1,74 @@
 @startuml
 title FR-21 - Generate Demand Forecast - Activity Diagram
 
-skinparam monochrome true
-skinparam shadowing false
-skinparam conditionStyle InsideDiamond
-
 |Blood Bank Administrator|
 start
-:Request a forecast within the\npermitted blood bank scope;
+:Request a forecast within the permitted blood bank scope;
 
 |Client|
-:Display the approved forecast interface;
+:Display the approved forecasting interface;
 
+|Blood Bank Administrator|
 repeat
-  |Blood Bank Administrator|
   :Select the component and ABO/Rh group;
   :Click the generate button;
 
   |Server — Analytics & AI|
-  :Determine the permitted forecast scope;
+  :Verify permission for the selected blood bank scope;
 
-  |Server — Requests|
-  :Retrieve relevant historical aggregates\nof original submitted demand for\nthe addressed bank, component and ABO/Rh;
+  if (Bank scope permitted?) then (Yes)
+    |Server — Requests|
+    :Retrieve historical submitted demand aggregates\nfor the addressed bank, component and ABO/Rh group;
 
-  if (Historical demand retrieved\nsuccessfully?) then (Yes)
     |Server — Analytics & AI|
-    :Prepare the historical demand data\nunder the approved model policy;
+    if (Historical demand retrieved successfully?) then (Yes)
+      :Prepare historical demand data and assess\nits sufficiency under the approved model policy;
 
-    if (Data prepared successfully and\nsufficient under the model policy?) then (Yes)
-      :Run the approved forecasting method;
+      if (Preparation succeeded and data is sufficient?) then (Yes)
+        |AI Service|
+        :Run the approved forecasting method\nusing the prepared aggregated history;
 
-      if (Processing succeeded and the\nresult satisfies the approved policy?) then (Yes)
-        :Save the new forecast atomically with\nits scope and retrieval information,\nwithout replacing earlier results;
+        |Server — Analytics & AI|
+        :Validate the forecasting outcome;
 
-        if (The completed forecast was\nsaved successfully?) then (Yes)
-          |Client|
-          :Display the saved forecast\nand its retrieval identifier;
+        if (Processing succeeded and result is valid?) then (Yes)
+          :Save a new forecast with its result,\ncomponent, ABO/Rh group, bank scope\nand identifying information;
+
+          if (Complete forecast saved successfully?) then (Yes)
+            |Client|
+            :Display the saved result or a completion message;
+          else (No)
+            |Client|
+            :Report generation failure;
+            stop
+          endif
+
         else (No)
           |Client|
-          :Report that forecast generation failed;
+          :Report generation failure;
+          stop
         endif
 
       else (No)
         |Client|
-        :Report that forecast generation failed;
+        :Report generation failure and explain\ninsufficient data or preparation failure;
+        stop
       endif
 
     else (No)
       |Client|
-      :Report insufficient data or\na data preparation failure;
+      :Report generation failure;
+      stop
     endif
 
   else (No)
     |Client|
-    :Report that forecast generation failed\nbecause historical data could not be retrieved;
+    :Explain that the selected bank scope is not permitted;
+    stop
   endif
 
   |Blood Bank Administrator|
-repeat while (Generate for another\ncomponent or ABO/Rh group?) is (Yes) not (No)
+repeat while (Generate for another component or group?) is (Yes) not (No)
 
 stop
 @enduml
