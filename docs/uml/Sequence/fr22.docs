@@ -1,104 +1,108 @@
 @startuml
 title FR-22 - View Saved Forecast - Sequence Diagram
-
-skinparam monochrome true
-skinparam shadowing false
 hide footbox
 
-actor "Blood Bank Administrator" as Administrator
+actor "Blood Bank Administrator" as Admin
 
 box "Client"
-  boundary "DemandForecastPage" as Page
+  boundary "SavedForecastsPage" as Page
 end box
 
 box "Server — Analytics & AI"
-  control "DemandForecastController\nPresentation" as ForecastController
-  control "DemandForecastService\nBusiness Logic" as ForecastService
-  entity "ForecastModel\nData Access" as ForecastModel
+  control "DemandForecastController\nPresentation" as Controller
+  control "DemandForecastService\nBusiness Logic" as Service
+  entity "ForecastModel\nData Access" as Model
 end box
 
-database Database as DB
+database "Database" as DB
 
-Administrator -> Page : requestSavedForecasts()
+Admin -> Page : requestSavedForecasts()
 activate Page
 
-Page -> ForecastController : getSavedForecasts()
-activate ForecastController
+Page -> Controller : listSavedForecasts()
+activate Controller
 
-ForecastController -> ForecastService : getSavedForecasts(bankContext)
-activate ForecastService
+Controller -> Service : listSavedForecasts(currentUser)
+activate Service
 
-ForecastService -> ForecastModel : findSavedForecastsWithinScope(bankContext)
-activate ForecastModel
+Service -> Service : determinePermittedForecastScope(currentUser)
+activate Service
+Service --> Service : permittedScope
+deactivate Service
 
-ForecastModel -> DB : readPublishedSavedForecastSummariesWithinScope(bankContext)
+Service -> Model : listSavedForecasts(permittedScope)
+activate Model
+
+Model -> DB : readSavedForecastSummaries(permittedScope)
 activate DB
-DB --> ForecastModel : listResult
+DB --> Model : listResult
 deactivate DB
 
-ForecastModel --> ForecastService : listResult
-deactivate ForecastModel
+Model --> Service : listResult
+deactivate Model
 
-ForecastService --> ForecastController : listResult
-deactivate ForecastService
+Service --> Controller : listResult
+deactivate Service
 
-ForecastController --> Page : listResult
-deactivate ForecastController
+Controller --> Page : listResult
+deactivate Controller
 
-alt List retrieved successfully and saved forecasts exist
+alt List retrieved successfully and forecasts exist
+  Page -> Page : displayAvailableForecasts(listResult.forecasts)
 
-  Page -> Page : displaySavedForecastList(listResult.forecasts)
+else List retrieved successfully and no forecasts exist
+  Page -> Page : displayNoSavedForecastResults()
 
-else List retrieved successfully and no saved forecasts exist
-
-  Page -> Page : displayNoSavedForecasts()
-
-else Forecast list retrieval failed
-
-  Page -> Page : displaySavedForecastLoadingFailure(listResult.problem)
-
+else List retrieval failed
+  Page -> Page : displayForecastListLoadingFailure()
 end
 
 deactivate Page
 
-opt Saved forecasts were listed and the administrator selects one
-
-  Administrator -> Page : selectSavedForecast(forecastId)
+opt List retrieved successfully and forecasts exist
+  Admin -> Page : selectSavedForecast(forecastId)
   activate Page
 
-  Page -> Page : clearPreviouslyDisplayedForecastDetails()
+  Page -> Controller : getSavedForecast(forecastId)
+  activate Controller
 
-  Page -> ForecastController : getSavedForecast(forecastId)
-  activate ForecastController
+  Controller -> Service : getSavedForecast(forecastId, currentUser)
+  activate Service
 
-  ForecastController -> ForecastService : getSavedForecast(forecastId, bankContext)
-  activate ForecastService
+  Service -> Service : determinePermittedForecastScope(currentUser)
+  activate Service
+  Service --> Service : currentPermittedScope
+  deactivate Service
 
-  ForecastService -> ForecastModel : findExactSavedForecastWithinScope(forecastId, bankContext)
-  activate ForecastModel
+  Service -> Model : getSavedForecast(forecastId, currentPermittedScope)
+  activate Model
 
-  ForecastModel -> DB : readExactSavedForecastWithIdentifyingInformation(\nforecastId, bankContext)
+  Model -> DB : readSavedForecastAndResults(forecastId, currentPermittedScope)
   activate DB
-  DB --> ForecastModel : retrievalResult
+  DB --> Model : retrievalResult
   deactivate DB
 
-  ForecastModel --> ForecastService : retrievalResult
-  deactivate ForecastModel
+  Model --> Service : retrievalResult
+  deactivate Model
 
-  ForecastService --> ForecastController : retrievalResult
-  deactivate ForecastService
+  Service -> Service : validateSelectedForecast(forecastId,\ncurrentPermittedScope, retrievalResult)
+  activate Service
+  Service --> Service : selectionResult
+  deactivate Service
 
-  ForecastController --> Page : retrievalResult
-  deactivate ForecastController
+  Service --> Controller : selectionResult
+  deactivate Service
 
-  alt Exact selected forecast retrieved successfully within current scope
+  Controller --> Page : selectionResult
+  deactivate Controller
 
-    Page -> Page : displaySelectedSavedForecast(\nretrievalResult.forecast.component, retrievalResult.forecast.aboRh,\nretrievalResult.forecast.scope, retrievalResult.forecast.identifyingInformation,\nretrievalResult.forecast.results)
+  Page -> Page : clearPreviouslyDisplayedForecast()
 
-  else Selected forecast is missing, out of scope or cannot be retrieved
+  alt Requested forecast retrieved within current scope
+    Page -> Page : displaySavedForecast(selectionResult.savedForecast.component,\nselectionResult.savedForecast.aboRh,\nselectionResult.savedForecast.scope,\nselectionResult.savedForecast.results,\nselectionResult.savedForecast.identifyingInformation)
 
-    Page -> Page : displaySelectedForecastUnavailable(forecastId, retrievalResult.problem)
-
+  else Forecast missing, out of scope or retrieval failed
+    Page -> Page : displaySelectedForecastUnavailable(selectionResult.reason)
   end
 
   deactivate Page

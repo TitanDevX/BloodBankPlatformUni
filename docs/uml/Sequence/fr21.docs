@@ -1,155 +1,130 @@
 @startuml
 title FR-21 - Generate Demand Forecast - Sequence Diagram
-
-skinparam monochrome true
-skinparam shadowing false
 hide footbox
 
-actor "Blood Bank Administrator" as Administrator
+actor "Blood Bank Administrator" as Admin
 
 box "Client"
   boundary "DemandForecastPage" as Page
 end box
 
 box "Server — Analytics & AI"
-  control "DemandForecastController\nPresentation" as ForecastController
-  control "DemandForecastService\nBusiness Logic" as ForecastService
+  control "DemandForecastController\nPresentation" as Controller
+  control "DemandForecastService\nBusiness Logic" as Service
   entity "ForecastModel\nData Access" as ForecastModel
 end box
 
 box "Server — Requests"
-  control "BloodRequestService\nBusiness Logic" as RequestService
-  entity "BloodRequestModel\nData Access" as RequestModel
+  control "RequestHistoryService\nBusiness Logic" as HistoryService
+  entity "RequestModel\nData Access" as RequestModel
 end box
 
-database Database as DB
+database "Database" as DB
 
-Administrator -> Page : requestDemandForecast()
+box "AI Service — Separate Deployment"
+  control "ForecastingService" as AI
+end box
+
+Admin -> Page : requestDemandForecast()
 activate Page
-Page -> Page : displayApprovedForecastInterface()
+Page -> Page : displayForecastingInterface()
 deactivate Page
 
-loop Initial generation or explicit generation for another component or ABO/Rh group
+loop Initial selection or another component/group, followed by an explicit Generate click
 
-  Administrator -> Page : selectComponentAndGroup(component, aboRh)
+  Admin -> Page : selectComponentAndGroup(component, aboRh)
   activate Page
   deactivate Page
 
-  Administrator -> Page : clickGenerateButton()
+  Admin -> Page : clickGenerateButton()
   activate Page
 
-  Page -> ForecastController : generateDemandForecast(component, aboRh)
-  activate ForecastController
+  Page -> Controller : generateForecast(bankScope, component, aboRh)
+  activate Controller
 
-  ForecastController -> ForecastService : generateDemandForecast(component, aboRh, bankContext)
-  activate ForecastService
+  Controller -> Service : generateForecast(currentUser, bankScope, component, aboRh)
+  activate Service
 
-  ForecastService -> ForecastService : determinePermittedForecastScope(component, aboRh, bankContext)
-  activate ForecastService
-  ForecastService --> ForecastService : forecastScope
-  deactivate ForecastService
+  Service -> Service : authorizeBankScope(currentUser, bankScope)
+  activate Service
+  Service --> Service : scopeResult
+  deactivate Service
 
-  ForecastService -> RequestService : getHistoricalDemandAggregates(forecastScope)
-  activate RequestService
+  alt Bank scope permitted
+    Service -> HistoryService : getSubmittedDemandHistory(bankScope, component, aboRh)
+    activate HistoryService
 
-  RequestService -> RequestModel : readOriginalSubmittedDemandAggregates(forecastScope)
-  activate RequestModel
+    HistoryService -> RequestModel : getDemandAggregatesForAddressedBank(bankScope, component, aboRh)
+    activate RequestModel
 
-  RequestModel -> DB : readOriginalSubmittedDemandByAddressedBank(\nforecastScope.bankId, forecastScope.component, forecastScope.aboRh)
-  activate DB
-  DB --> RequestModel : historyReadResult
-  deactivate DB
+    RequestModel -> DB : readOriginalSubmittedDemandAggregates(\nbankScope, component, aboRh)
+    activate DB
+    DB --> RequestModel : historyResult
+    deactivate DB
 
-  RequestModel --> RequestService : historyReadResult
-  deactivate RequestModel
+    RequestModel --> HistoryService : historyResult
+    deactivate RequestModel
 
-  RequestService --> ForecastService : historyReadResult
-  deactivate RequestService
+    HistoryService --> Service : historyResult
+    deactivate HistoryService
 
-  alt Historical demand retrieved successfully
+    alt Historical demand retrieved successfully
+      Service -> Service : prepareAndAssessForecastInput(historyResult.aggregates)
+      activate Service
+      Service --> Service : inputAssessment
+      deactivate Service
 
-    ForecastService -> ForecastService : prepareHistoricalDemandUnderApprovedPolicy(historyReadResult.data, forecastScope)
-    activate ForecastService
-    ForecastService --> ForecastService : preparationResult
-    deactivate ForecastService
+      alt Preparation succeeded and data sufficient under approved policy
+        Service -> AI : generateForecast(inputAssessment.aggregatedHistory,\ncomponent, aboRh, approvedForecastParameters)
+        activate AI
 
-    alt Data prepared successfully and sufficient under model policy
+        AI -> AI : runApprovedForecastingMethod()
+        AI --> Service : forecastingOutcome
+        deactivate AI
 
-      ForecastService -> ForecastService : runApprovedForecastingMethod(preparationResult.data, forecastScope)
-      activate ForecastService
-      ForecastService --> ForecastService : forecastOutcome
-      deactivate ForecastService
+        Service -> Service : validateForecastingOutcome(forecastingOutcome)
+        activate Service
+        Service --> Service : forecastValidation
+        deactivate Service
 
-      alt Forecasting succeeded and output satisfies approved policy
+        alt Processing succeeded and forecast response valid
+          Service -> ForecastModel : saveNewForecast(bankScope, component, aboRh,\nforecastingOutcome, identifyingInformation)
+          activate ForecastModel
 
-        ForecastService -> ForecastModel : saveNewCompletedForecast(forecastScope, forecastOutcome)
-        activate ForecastModel
+          ForecastModel -> DB : insertNewForecastAndResultsAtomically(\nbankScope, component, aboRh, predictions,\nmodelMetadata, identifyingInformation)
+          activate DB
+          DB --> ForecastModel : saveResult
+          deactivate DB
 
-        ForecastModel -> DB : insertCompletedForecastWithScopeAndRetrievalMetadataAtomically(\nforecastScope, forecastOutcome)
-        activate DB
-        DB --> ForecastModel : saveResult
-        deactivate DB
+          ForecastModel --> Service : saveResult
+          deactivate ForecastModel
 
-        ForecastModel --> ForecastService : saveResult
-        deactivate ForecastModel
-
-        alt Completed forecast saved successfully
-
-          ForecastService -> ForecastService : buildCompletedForecastResponse(saveResult.forecast)
-          activate ForecastService
-          ForecastService --> ForecastService : generationResponse
-          deactivate ForecastService
-
-        else Forecast could not be saved
-
-          ForecastService -> ForecastService : buildFailedGenerationResponse(saveResult.problem)
-          activate ForecastService
-          ForecastService --> ForecastService : generationResponse
-          deactivate ForecastService
-
+        else Processing failed or forecast response invalid
+          Service -> Service : buildGenerationFailure(forecastValidation.reason)
         end
 
-      else Forecasting failed or output is invalid
-
-        ForecastService -> ForecastService : buildFailedGenerationResponse(forecastOutcome.problem)
-        activate ForecastService
-        ForecastService --> ForecastService : generationResponse
-        deactivate ForecastService
-
+      else Insufficient data or preparation failed
+        Service -> Service : buildGenerationFailure(inputAssessment.reason)
       end
 
-    else Data is insufficient or preparation failed
-
-      ForecastService -> ForecastService : buildFailedGenerationResponse(preparationResult.problem)
-      activate ForecastService
-      ForecastService --> ForecastService : generationResponse
-      deactivate ForecastService
-
+    else Historical demand retrieval failed
+      Service -> Service : buildGenerationFailure(historyResult.reason)
     end
 
-  else Historical demand retrieval failed
-
-    ForecastService -> ForecastService : buildFailedGenerationResponse(historyReadResult.problem)
-    activate ForecastService
-    ForecastService --> ForecastService : generationResponse
-    deactivate ForecastService
-
+  else Bank scope not permitted
+    Service -> Service : buildGenerationFailure(scopeResult.reason)
   end
 
-  ForecastService --> ForecastController : generationResponse
-  deactivate ForecastService
+  Service --> Controller : generationResult
+  deactivate Service
 
-  ForecastController --> Page : generationResponse
-  deactivate ForecastController
+  Controller --> Page : generationResult
+  deactivate Controller
 
-  alt Completed forecast was saved
-
-    Page -> Page : displaySavedForecast(\ngenerationResponse.forecast, generationResponse.forecast.id)
-
+  alt Complete forecast saved successfully
+    Page -> Page : displayForecastResultOrCompletion(generationResult.savedForecast)
   else Generation failed
-
-    Page -> Page : displayGenerationFailure(generationResponse.problem)
-
+    Page -> Page : displayGenerationFailure(generationResult.reason)
   end
 
   deactivate Page

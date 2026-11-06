@@ -12,46 +12,42 @@ box "Client"
 end box
 
 box "Server — Donors"
-  control "DonorSearchController\nPresentation" as Controller
-  control "DonorSearchService\nBusiness Logic" as Service
+  control "DonorProfileController\nPresentation" as Controller
+  control "DonorProfileService\nBusiness Logic" as Service
   entity "DonorProfileModel\nData Access" as Model
 end box
 
-database "Database" as DB
+database Database as DB
 
 Receptionist -> Page : openDonorSearch()
 activate Page
-Page -> Page : displaySearchCriteriaFields()
+Page -> Page : displayDonorSearchForm()
 deactivate Page
 
-Receptionist -> Page : enterSearchCriteria(criteria)
+Receptionist -> Page : enterSearchCriteria(searchCriteria)
 activate Page
 deactivate Page
 
 Receptionist -> Page : clickSearchButton()
 activate Page
 
-Page -> Controller : searchDonorProfiles(criteria)
+Page -> Controller : searchDonorProfiles(searchCriteria)
 activate Controller
 
-Controller -> Service : searchDonorProfiles(criteria, currentUser)
+Controller -> Service : searchDonorProfiles(searchCriteria)
 activate Service
 
-Service -> Service : validateSearchCriteria(criteria)
+Service -> Service : validateSearchCriteria(searchCriteria)
 activate Service
 Service --> Service : validationResult
 deactivate Service
 
-alt Search criteria valid
-  Service -> Service : determinePermittedSearchScope(currentUser)
-  activate Service
-  Service --> Service : permittedScope
-  deactivate Service
+alt Search criteria are valid
 
-  Service -> Model : findMatchingProfiles(criteria, permittedScope)
+  Service -> Model : findMatchingDonorProfiles(searchCriteria)
   activate Model
 
-  Model -> DB : readMatchingDonorProfiles(\ncriteria, permittedScope)
+  Model -> DB : readMatchingDonorProfiles(searchCriteria)
   activate DB
   DB --> Model : retrievalResult
   deactivate DB
@@ -59,53 +55,43 @@ alt Search criteria valid
   Model --> Service : retrievalResult
   deactivate Model
 
-  Service --> Controller : searchResult
+  Service -> Service : buildSearchResult(retrievalResult)
+  activate Service
+  Service --> Service : searchResult
+  deactivate Service
 
-else Search criteria invalid
-  Service --> Controller : searchResult: invalid criteria
+else Search criteria are invalid
+
+  Service -> Service : buildInvalidCriteriaResult(validationResult.problems)
+  activate Service
+  Service --> Service : searchResult
+  deactivate Service
+
 end
 
+Service --> Controller : searchResult
 deactivate Service
 
 Controller --> Page : searchResult
 deactivate Controller
 
-alt Search criteria invalid
-  Page -> Page : displaySearchProblem(searchResult.problemDetails)
+alt Search criteria are invalid
 
-else Retrieval failed
-  Page -> Page : displaySearchProblem(searchResult.problemDetails)
+  Page -> Page : displayInvalidCriteriaProblem(searchResult.problem)
 
-else Retrieval succeeded with no matching profiles
-  Page -> Page : displayNoMatchingProfiles()
+else Profile retrieval failed
 
-else Retrieval succeeded with matching profiles
-  Page -> Page : displaySearchResults(searchResult.profiles)
+  Page -> Page : displayProfileRetrievalFailure(searchResult.problem)
+
+else Retrieval succeeded and no matching profiles were found
+
+  Page -> Page : displayNoMatchesAndRegistrationOption()
+
+else Retrieval succeeded and matching profiles were found
+
+  Page -> Page : displayMatchingProfiles(searchResult.profiles)
+
 end
 
 deactivate Page
-
-opt Search completed successfully
-  alt No matching profiles
-    opt Receptionist chooses to proceed to FR-09
-      Receptionist -> Page : proceedToDonorRegistration()
-      activate Page
-      Page -> Page : openDonorRegistrationPage()
-      deactivate Page
-    end
-
-  else Matching profiles found
-    alt Multiple profiles distinguished using available information
-      Receptionist -> Page : identifyCorrectProfileAfterCheckingIdentity(\nprofileId)
-      activate Page
-      deactivate Page
-
-    else One matching profile
-      Receptionist -> Page : identifyCorrectProfileAfterCheckingIdentity(\nprofileId)
-      activate Page
-      deactivate Page
-    end
-  end
-end
-
 @enduml

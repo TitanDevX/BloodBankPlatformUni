@@ -1,88 +1,84 @@
 @startuml
 title FR-18 - Submit Blood Component Request - Activity Diagram
-skinparam monochrome true
-skinparam shadowing false
-skinparam conditionStyle InsideDiamond
 
 |Hospital Staff|
 start
 :Open the blood component request form;
+:Enter patient details or reference,\ncomponent, ABO/Rh group, quantity,\nand other required information;
+:Request a match;
 
-|Client|
-:Display the required request fields;
-
-|Hospital Staff|
-:Enter patient details or reference,\ncomponent, ABO/Rh, quantity,\nand other required information;
-:Request a match under FR-19;
-
+|Server — Requests|
 repeat
-  |Server — Requests|
-  :Validate the current request data\nand hospital scope;
+  :Validate request data and hospital scope;
 
-  if (Data and hospital\nscope valid?) then (Yes)
+  if (Data valid and hospital within authority?) then (Yes)
     |Server — Inventory|
-    :Find a match under FR-19\nusing current stock;
+    :Find the current match using current stock;
 
-    |Client|
-    :Replace the displayed match\nwith the current result;
-
-    if (Bank matched?) then (Yes)
-      :Display the matched bank\nand Submit and Retry buttons;
-
-    else (No)
-      if (No eligible match found?) then (Yes)
-        :Display No Match\nand the Retry button;
-      else (Cannot determine)
-        :Explain the matching problem\nand display Retry;
+    if (Matching result can be determined?) then (Yes)
+      if (A qualifying bank is found?) then (Yes)
+        |Client|
+        :Display the matched bank and match details\nwith Submit and Retry buttons;
+      else (No)
+        |Client|
+        :Display a no-match message and Retry button\nwithout enabling Submit;
       endif
+    else (No)
+      |Client|
+      :Explain that a match cannot be determined\nand display the Retry button;
     endif
 
   else (No)
     |Client|
-    :Clear the displayed match\nand identify required corrections;
+    :Reject the operation and identify corrections;
+    stop
   endif
 
   |Hospital Staff|
-  while (Matched bank displayed\nand staff chooses Submit?) is (Yes)
-    :Review the details and displayed bank;
+  if (A matched bank is displayed?) then (Yes)
+    :Review the request details and displayed bank;
+  endif
+
+  if (Cancel before clicking Submit?) then (Yes)
+    :Cancel the request;
+    stop
+  endif
+
+  if (A matched bank is displayed and Submit selected?) then (Yes)
     :Click the submit button;
 
     |Server — Requests|
-    :Recheck current data validity\nand hospital authority;
+    :Recheck request data and hospital scope;
 
-    if (Current data and\nauthority valid?) then (Yes)
+    if (Data valid and hospital within authority?) then (Yes)
       |Server — Inventory|
-      :Reverify the displayed bank\nagainst the current match under FR-19;
+      :Reverify the displayed bank against\ncurrent request data and stock;
 
-      if (Displayed bank remains\na valid current match?) then (Yes)
+      if (Displayed bank is still a valid match?) then (Yes)
         |Server — Requests|
-        :Save a Pending request linked to\nthe patient, authorized hospital,\nand displayed bank;
-        :Make request details available as a notification\nto authorized inventory staff\nat the addressed bank;
+        :Save a Pending request linked to the patient,\nhospital and displayed matched bank,\nwith component, ABO/Rh, quantity\nand other required details;
+        :Make a notice containing request details\navailable to authorized inventory staff\nat the addressed bank;
 
         |Client|
-        :Display submission confirmation\nand request status Pending;
+        :Display submission confirmation\nand Pending request status;
         stop
 
-      else (No)
+      else (No or cannot verify)
         |Client|
-        :Clear the displayed match;
-        :Explain that the match changed\nor could not be reverified and offer Retry;
+        :Clear the current match and disable Submit;
+        :Display the submission problem\nand Retry button;
       endif
 
     else (No)
       |Client|
-      :Reject submission and\nidentify required corrections;
+      :Reject submission and identify corrections;
+      stop
     endif
-
-    |Hospital Staff|
-  endwhile (No)
-
-  if (Staff cancels before submission?) then (Yes)
-    :Cancel the request entry;
-    stop
   endif
 
-repeat while (Staff clicks Retry?) is (Yes)
+  |Hospital Staff|
+  backward :Click the retry button;
+repeat while (Retry selected?) is (Yes) not (No)
 
 stop
 @enduml
