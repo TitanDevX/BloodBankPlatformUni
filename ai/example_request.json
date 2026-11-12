@@ -1,0 +1,34 @@
+{
+  "blood_type": "A+",
+  "prediction_date": "2025-04-30",
+  "history": [
+    {
+      "date": "2025-04-23",
+      "units_requested": 6
+    },
+    {
+      "date": "2025-04-24",
+      "units_requested": 3
+    },
+    {
+      "date": "2025-04-25",
+      "units_requested": 3
+    },
+    {
+      "date": "2025-04-26",
+      "units_requested": 6
+    },
+    {
+      "date": "2025-04-27",
+      "units_requested": 8
+    },
+    {
+      "date": "2025-04-28",
+      "units_requested": 10
+    },
+    {
+      "date": "2025-04-29",
+      "units_requested": 2
+    }
+  ]
+}
